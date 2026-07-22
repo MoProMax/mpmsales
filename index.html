@@ -177,10 +177,58 @@
 
   .footnote { margin-top: 22px; font-size: 11.5px; color: #9a9aa4; line-height: 1.7; }
   .footnote b { color: #6b6b76; }
+
+  /* ---------- Auth gate ---------- */
+  #auth-gate {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #0f1115;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #auth-gate .card {
+    background: #ffffff; border-radius: 14px; padding: 34px 32px;
+    width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  }
+  #auth-gate h2 { margin: 0 0 6px; font-size: 19px; }
+  #auth-gate p.sub { margin: 0 0 20px; font-size: 13px; color: #6b6b76; }
+  #auth-gate label { display:block; font-size: 11px; font-weight: 700; color:#3a3a44; margin: 14px 0 5px; text-transform: uppercase; letter-spacing:.03em; }
+  #auth-gate input {
+    width: 100%; padding: 10px 12px; border: 1px solid #d7d7dc; border-radius: 8px;
+    font-size: 14px; box-sizing: border-box; font-family: inherit;
+  }
+  #auth-gate button {
+    width: 100%; margin-top: 20px; padding: 11px; border: none; border-radius: 8px;
+    background: #14151a; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  #auth-gate button:disabled { opacity: .5; cursor: default; }
+  #auth-gate .error { color: #c0392b; font-size: 12.5px; margin-top: 12px; min-height: 16px; }
+  #auth-gate .hint { color: #9a9aa4; font-size: 11.5px; margin-top: 10px; }
+  #step-totp { display: none; }
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<div id="auth-gate">
+  <div class="card">
+    <h2>Mo Pro Max</h2>
+    <p class="sub">Alleen voor geautoriseerde toegang.</p>
+    <div id="step-password">
+      <label>E-mail</label>
+      <input type="email" id="auth-email" autocomplete="username" value="benmomoben321@gmail.com">
+      <label>Wachtwoord</label>
+      <input type="password" id="auth-password" autocomplete="current-password">
+      <button id="auth-login-btn" type="button">Inloggen</button>
+    </div>
+    <div id="step-totp">
+      <label>Google Authenticator-code</label>
+      <input type="text" id="auth-totp" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6 cijfers" autocomplete="one-time-code">
+      <button id="auth-totp-btn" type="button">Verifiëren</button>
+      <p class="hint">Open Google Authenticator en vul de 6-cijferige code in.</p>
+    </div>
+    <div class="error" id="auth-error"></div>
+  </div>
+</div>
+
+<div class="wrap" id="dashboard-root" style="display:none;">
 
   <div class="header">
     <div>
@@ -557,15 +605,18 @@ function fbSetStatus(text, ok) {
   el.style.color = ok === true ? "#1a9e5c" : ok === false ? "#c0392b" : "#8a8a96";
 }
 
-async function fbSignInAnonymously() {
-  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_CONFIG.apiKey}`, {
+async function fbSignInWithPassword(email, password) {
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_CONFIG.apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ returnSecureToken: true })
+    body: JSON.stringify({ email, password, returnSecureToken: true })
   });
-  if (!res.ok) throw new Error("Anoniem inloggen mislukt (status " + res.status + "). Staat Anonymous sign-in aan in Firebase Authentication?");
   const data = await res.json();
-  return { idToken: data.idToken, refreshToken: data.refreshToken, expiresAt: Date.now() + (Number(data.expiresIn) || 3600) * 1000 - 60000 };
+  if (!res.ok) {
+    const msg = (data && data.error && data.error.message) || ("status " + res.status);
+    throw new Error("Inloggen mislukt: " + msg);
+  }
+  return { idToken: data.idToken, refreshToken: data.refreshToken, expiresAt: Date.now() + (Number(data.expiresIn) || 3600) * 1000 - 60000, localId: data.localId };
 }
 
 async function fbRefreshToken(refreshToken) {
@@ -576,21 +627,128 @@ async function fbRefreshToken(refreshToken) {
   });
   if (!res.ok) throw new Error("Firebase token vernieuwen mislukt (status " + res.status + ")");
   const data = await res.json();
-  return { idToken: data.id_token, refreshToken: data.refresh_token, expiresAt: Date.now() + (Number(data.expires_in) || 3600) * 1000 - 60000 };
+  return { idToken: data.id_token, refreshToken: data.refresh_token, expiresAt: Date.now() + (Number(data.expires_in) || 3600) * 1000 - 60000, localId: data.user_id };
 }
 
 async function fbEnsureAuth() {
-  // Niets wordt opgeslagen (geen localStorage): binnen één pagina-load wordt het
-  // token in het geheugen hergebruikt/ververst; bij een nieuwe pagina-load wordt
-  // gewoon opnieuw anoniem ingelogd.
+  // Geen anonieme fallback meer: alleen de echte, met e-mail/wachtwoord + TOTP
+  // ingelogde sessie (via de auth-gate) mag Firestore benaderen. Niets wordt
+  // opgeslagen (geen localStorage) — bij een nieuwe pagina-load moet opnieuw
+  // ingelogd worden.
   if (fbAuth && fbAuth.idToken && fbAuth.expiresAt > Date.now()) return fbAuth.idToken;
-  try {
-    fbAuth = (fbAuth && fbAuth.refreshToken) ? await fbRefreshToken(fbAuth.refreshToken) : await fbSignInAnonymously();
-  } catch (e) {
-    fbAuth = await fbSignInAnonymously();
+  if (fbAuth && fbAuth.refreshToken) {
+    fbAuth = await fbRefreshToken(fbAuth.refreshToken);
+    return fbAuth.idToken;
   }
-  return fbAuth.idToken;
+  throw new Error("Niet ingelogd.");
 }
+
+/* ============================ AUTH GATE (e-mail/wachtwoord + Google Authenticator) ============================ */
+const OWNER_UID = "ykTGRpQNIsbiAHmwkzJNvFFY9T82";
+
+function gateSetError(msg) {
+  const el = document.getElementById("auth-error");
+  if (el) el.textContent = msg || "";
+}
+
+function base32Decode(base32) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for (const char of base32.replace(/=+$/, "").toUpperCase()) {
+    const val = alphabet.indexOf(char);
+    if (val === -1) continue;
+    bits += val.toString(2).padStart(5, "0");
+  }
+  const bytes = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.substr(i, 8), 2));
+  return new Uint8Array(bytes);
+}
+
+async function totpCodeAt(secretBase32, counter) {
+  const keyBytes = base32Decode(secretBase32);
+  const buf = new ArrayBuffer(8);
+  const view = new DataView(buf);
+  view.setUint32(0, Math.floor(counter / 0x100000000), false);
+  view.setUint32(4, counter >>> 0, false);
+  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, buf));
+  const offset = sig[sig.length - 1] & 0x0f;
+  const binCode = ((sig[offset] & 0x7f) << 24) | ((sig[offset + 1] & 0xff) << 16) | ((sig[offset + 2] & 0xff) << 8) | (sig[offset + 3] & 0xff);
+  return (binCode % 1000000).toString().padStart(6, "0");
+}
+
+async function verifyTotpCode(secretBase32, userCode) {
+  const clean = (userCode || "").trim();
+  if (!/^[0-9]{6}$/.test(clean)) return false;
+  const step = 30;
+  const counter = Math.floor(Date.now() / 1000 / step);
+  for (let w = -1; w <= 1; w++) {
+    const code = await totpCodeAt(secretBase32, counter + w);
+    if (code === clean) return true;
+  }
+  return false;
+}
+
+async function fetchTotpSecret(idToken) {
+  const res = await fetch(`${FS_BASE}/authConfig/mfa`, { headers: { "Authorization": "Bearer " + idToken } });
+  if (!res.ok) throw new Error("Kan 2FA-configuratie niet ophalen (status " + res.status + ")");
+  const data = await res.json();
+  return fromFsFields(data.fields).secret;
+}
+
+function unlockDashboard() {
+  const gate = document.getElementById("auth-gate");
+  const root = document.getElementById("dashboard-root");
+  if (gate) gate.style.display = "none";
+  if (root) root.style.display = "";
+  fbInit();
+}
+
+on("auth-login-btn", "click", async () => {
+  const email = (document.getElementById("auth-email")?.value || "").trim();
+  const password = document.getElementById("auth-password")?.value || "";
+  gateSetError("");
+  const btn = document.getElementById("auth-login-btn");
+  btn.disabled = true; btn.textContent = "Bezig...";
+  try {
+    const auth = await fbSignInWithPassword(email, password);
+    if (auth.localId !== OWNER_UID) {
+      throw new Error("Dit account heeft geen toegang.");
+    }
+    fbAuth = auth;
+    document.getElementById("step-password").style.display = "none";
+    document.getElementById("step-totp").style.display = "block";
+    document.getElementById("auth-totp")?.focus();
+  } catch (e) {
+    gateSetError("Onjuiste inloggegevens.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Inloggen";
+  }
+});
+
+on("auth-totp-btn", "click", async () => {
+  const code = document.getElementById("auth-totp")?.value || "";
+  gateSetError("");
+  const btn = document.getElementById("auth-totp-btn");
+  btn.disabled = true; btn.textContent = "Bezig...";
+  try {
+    const secret = await fetchTotpSecret(fbAuth.idToken);
+    const ok = await verifyTotpCode(secret, code);
+    if (!ok) throw new Error("bad code");
+    unlockDashboard();
+  } catch (e) {
+    gateSetError("Onjuiste 2FA-code. Probeer opnieuw.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Verifiëren";
+  }
+});
+
+document.getElementById("auth-password")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("auth-login-btn")?.click();
+});
+document.getElementById("auth-totp")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("auth-totp-btn")?.click();
+});
 
 /* ---- Firestore REST <-> plain JS waarden ---- */
 function toFsValue(v) {
@@ -783,7 +941,7 @@ async function fbInit() {
     fbSetStatus("Firebase: niet verbonden — geen data geladen. Vernieuw de pagina om opnieuw te proberen.", false);
   }
 }
-fbInit();
+// fbInit() wordt pas aangeroepen ná succesvolle login + TOTP-verificatie, via unlockDashboard().
 
 /* =========================================================================
    HELPERS
