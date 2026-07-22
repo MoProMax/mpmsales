@@ -21,7 +21,7 @@ Twee lagen, beide **server-side afgedwongen door Google** (niet door de pagina z
 **b) TOTP-MFA inschakelen**
 1. Firebase console → **Authentication** → **Sign-in method** → onderaan **Advanced** / **SMS multi-factor authentication** → kies **TOTP (authenticator app)** en zet aan.
    (Dit vereist **Firebase Authentication with Identity Platform**; upgraden kan de console je vragen — de gratis laag dekt ruim voldoende gebruikers.)
-2. Log daarna in op de site met e-mail + wachtwoord. Omdat er nog geen tweede factor gekoppeld is, toont de pagina eenmalig een **setup-sleutel**. Voeg die in Google Authenticator toe via *"Setup-sleutel invoeren"* en bevestig met de 6-cijferige code.
+2. Log daarna in op de site met e-mail + wachtwoord. Omdat er nog geen tweede factor gekoppeld is, toont de pagina eenmalig een **QR-code** (lokaal getekend, het geheim verlaat de browser niet). Scan die met Google Authenticator (*"QR-code scannen"*) — of gebruik de uitklapbare **setup-sleutel** als handmatige terugval — en bevestig met de 6-cijferige code.
 3. Vanaf dat moment vraagt élke login om de code, door Google gecontroleerd.
 
 Zolang stap (b) nog niet gedaan is, meldt het inlogscherm netjes dat TOTP-MFA nog aangezet moet worden.
