@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Mopromax Revenue Platform",
+  "schemaVersion": 1,
+  "description": "Gecombineerd Mo Pro Max revenue platform: (1) een niet-lineaire sales/delivery funnel als flowchart met 34 fases en ~40 vertakkingen/loops/dead-ends/win-back-paden voor ontwerp, ontwikkeling, implementatie en onderhoud van websites, en (2) een leads-inbox met filters, een onderzoeksaanvraag-formulier (voor het laten ophalen van nieuwe leads via Claude/Google Maps) en select+verplaats-naar-funnel. Vervangt de eerdere twee losse artifacts. Data centraal opgeslagen in Firebase Firestore (geen localStorage).",
+  "mcpTools": [
+    "mcp__scheduled-tasks__update_scheduled_task"
+  ],
+  "mcpServerNames": [
+    "scheduled-tasks"
+  ]
+}
+</script>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<title>Mo Pro Max — Revenue Platform</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: #f5f5f7;
+    color: #14151a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { padding: 26px 30px 60px; max-width: 2200px; margin: 0 auto; }
+
+  /* ---------- Header ---------- */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; flex-wrap: wrap; gap: 14px; }
+  .header .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, #4f46e5, #14b8a6);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 15px;
+  }
+  h1 { font-size: 19px; margin: 0; letter-spacing: -0.01em; }
+  .subtitle { color: #6b6b76; font-size: 12.5px; margin: 2px 0 0; }
+  .nav-tabs { display: flex; gap: 6px; background: #fff; border: 1px solid #e6e5eb; border-radius: 10px; padding: 4px; }
+  .nav-tabs button {
+    border: none; background: transparent; padding: 8px 16px; font-size: 13px; font-weight: 600;
+    border-radius: 7px; cursor: pointer; color: #6b6b76;
+  }
+  .nav-tabs button.active { background: #14151a; color: #fff; }
+
+  /* ---------- Summary dashboard ---------- */
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .summary .card { background: #fff; border: 1px solid #e6e5eb; border-radius: 12px; padding: 15px 17px; }
+  .summary .card .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: #8a8a96; font-weight: 700; }
+  .summary .card .value { font-size: 23px; font-weight: 800; margin-top: 6px; letter-spacing: -0.02em; }
+  .summary .card .sub { font-size: 11.5px; color: #9a9aa4; margin-top: 3px; }
+  .summary .card.accent { background: linear-gradient(135deg, #14151a, #2b2d38); border: none; }
+  .summary .card.accent .label { color: #a8a9b8; }
+  .summary .card.accent .value { color: #fff; }
+  .summary .card.accent .sub { color: #8f909e; }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ---------- Panels / cards generic ---------- */
+  .panel { background: #fff; border: 1px solid #e6e5eb; border-radius: 14px; padding: 18px 20px; margin-bottom: 18px; }
+  .panel-title { font-size: 14.5px; font-weight: 700; margin: 0 0 3px; }
+  .panel-desc { font-size: 12px; color: #8a8a96; margin: 0 0 16px; line-height: 1.5; }
+
+  .btn {
+    background: #14151a; color: #fff; border: none; border-radius: 8px;
+    padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .btn:hover { background: #34353f; }
+  .btn.secondary { background: #fff; color: #14151a; border: 1px solid #d9d8e0; }
+  .btn.secondary:hover { background: #f5f5f7; }
+  .btn.small { padding: 5px 10px; font-size: 11.5px; border-radius: 6px; }
+  .btn.danger { background: #fff; color: #b3261e; border: 1px solid #f2d0cc; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ---------- Inbox / leads table ---------- */
+  .filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+  .filter-group { display: flex; flex-direction: column; gap: 4px; min-width: 140px; }
+  .filter-group label { font-size: 11px; color: #8a8a96; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .filter-group select, .filter-group input {
+    padding: 7px 9px; border: 1px solid #d9d8e0; border-radius: 7px; font-size: 12.5px; background: #fff; color: #14151a;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid #efeef4; }
+  th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: #8a8a96; font-weight: 700; background: #fbfbfc; }
+  tr:hover td { background: #fafafc; }
+  .stars { color: #d4a017; white-space: nowrap; font-size: 12px; }
+  .empty-msg { text-align: center; color: #9a9aa4; font-size: 12.5px; padding: 30px; }
+
+  .form-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; align-items: end; }
+  .form-grid .field label { display: block; font-size: 11px; font-weight: 700; color: #8a8a96; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; }
+  .form-grid .field input, .form-grid .field select {
+    width: 100%; padding: 8px 10px; border: 1px solid #d9d8e0; border-radius: 7px; font-size: 12.5px;
+  }
+
+  .req-card { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #eee7d0; background: #fffdf6; border-radius: 9px; margin-bottom: 8px; font-size: 12.5px; }
+  .req-card .meta { color: #8a8a96; font-size: 11.5px; }
+  .req-actions { display: flex; gap: 6px; }
+  .status-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700; background: #fdf1d6; color: #92650a; }
+
+  /* ---------- Flowchart ---------- */
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; font-size: 11.5px; color: #6b6b76; }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+  .canvas-scroll { position: relative; overflow: auto; border: 1px solid #e6e5eb; border-radius: 14px; background: #fbfbfd; }
+  .canvas {
+    position: relative;
+    background-image: radial-gradient(#e3e2e9 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .node {
+    position: absolute; width: 210px; min-height: 62px;
+    background: #fff; border: 1.5px solid #dedde5; border-left-width: 5px;
+    border-radius: 10px; padding: 8px 10px; cursor: pointer;
+    box-shadow: 0 1px 2px rgba(20,21,26,0.04);
+    transition: box-shadow .12s ease, transform .12s ease;
+  }
+  .node:hover { box-shadow: 0 6px 16px rgba(20,21,26,0.12); transform: translateY(-1px); }
+  .node .node-label { font-size: 12px; font-weight: 700; line-height: 1.25; }
+  .node .node-phase { font-size: 9.5px; color: #9a9aa4; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+  .node .node-badge {
+    position: absolute; top: -8px; right: -8px; min-width: 20px; height: 20px; padding: 0 5px;
+    background: #14151a; color: #fff; border-radius: 999px; font-size: 10.5px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .node.terminal-lost { border-left-color: #dc2626; background: #fffafa; }
+  .node.terminal-won { border-left-color: #16a34a; }
+  .node.ongoing { border-left-color: #16a34a; background: #f3fbf5; }
+  .node.ongoing::after {
+    content: ""; position: absolute; bottom: 8px; right: 10px; width: 8px; height: 8px;
+    border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.25);
+  }
+  .node.nurture { border-left-color: #d97706; background: #fffdf7; }
+
+  /* ---------- Side panel ---------- */
+  .side-panel {
+    position: fixed; top: 0; right: -420px; width: 400px; height: 100vh; background: #fff;
+    border-left: 1px solid #e6e5eb; box-shadow: -8px 0 24px rgba(20,21,26,0.08);
+    transition: right .18s ease; z-index: 200; overflow-y: auto; padding: 22px;
+  }
+  .side-panel.open { right: 0; }
+  .side-panel-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .side-panel-header h2 { font-size: 15px; margin: 0; }
+  .side-panel .close-x { border: none; background: none; font-size: 18px; cursor: pointer; color: #8a8a96; }
+  .side-panel .node-desc { font-size: 12px; color: #8a8a96; margin-bottom: 16px; }
+  .deal-card {
+    border: 1px solid #eceaf3; border-radius: 10px; padding: 11px 12px; margin-bottom: 10px; font-size: 12.5px; background: #fbfbfd;
+  }
+  .deal-card .name { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+  .deal-card .meta { color: #8a8a96; font-size: 11.5px; margin-bottom: 6px; }
+  .deal-card .value-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px; }
+  .deal-card select { width: 100%; padding: 6px 8px; border: 1px solid #d9d8e0; border-radius: 6px; font-size: 12px; margin-bottom: 6px; }
+  .deal-card .row-actions { display: flex; gap: 6px; }
+  .backdrop-dim {
+    display: none; position: fixed; inset: 0; background: rgba(20,21,26,0.25); z-index: 150;
+  }
+  .backdrop-dim.open { display: block; }
+
+  /* ---------- Modal (add/edit deal) ---------- */
+  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(20,21,26,0.35); align-items: center; justify-content: center; z-index: 300; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: #fff; border-radius: 14px; padding: 22px; width: 480px; max-width: 92vw; max-height: 88vh; overflow-y: auto; }
+  .modal h2 { font-size: 16px; margin: 0 0 16px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: #444; margin-bottom: 4px; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid #d9d8e0; border-radius: 7px; font-size: 13px; font-family: inherit;
+  }
+  .field textarea { resize: vertical; min-height: 50px; }
+  .checkbox-grid { display: flex; flex-direction: column; gap: 6px; }
+  .checkbox-grid label { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 400; }
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+  .footnote { margin-top: 22px; font-size: 11.5px; color: #9a9aa4; line-height: 1.7; }
+  .footnote b { color: #6b6b76; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div>
+          <h1>Mo Pro Max — Revenue Platform</h1>
+          <p class="subtitle">Leads sourcen &middot; kwalificeren &middot; door de volledige funnel: ontwerp &rarr; ontwikkeling &rarr; implementatie &rarr; onderhoud.</p>
+        </div>
+      </div>
+    </div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" data-tab="funnel">Sales funnel</button>
+      <button class="tab-btn" data-tab="inbox">Leads inbox</button>
+    </div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <!-- ===================== FUNNEL SECTION ===================== -->
+  <div class="section active" id="section-funnel">
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+        <div>
+          <div class="panel-title">Sales &amp; delivery funnel</div>
+          <div class="panel-desc">Geen rechte lijn &mdash; leads kunnen vastlopen, terugveren of een omweg maken, precies zoals in de praktijk. Klik op een knoop om de leads daar te bekijken en te verplaatsen.</div>
+        </div>
+        <button class="btn" id="new-deal-btn">+ Nieuwe deal in funnel</button>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:#64748b"></span>Acquisitie</span>
+        <span><span class="dot" style="background:#6366f1"></span>Ontdekking</span>
+        <span><span class="dot" style="background:#8b5cf6"></span>Voorstel</span>
+        <span><span class="dot" style="background:#3b82f6"></span>Ontwerp</span>
+        <span><span class="dot" style="background:#06b6d4"></span>Ontwikkeling</span>
+        <span><span class="dot" style="background:#14b8a6"></span>Implementatie</span>
+        <span><span class="dot" style="background:#22c55e"></span>Onderhoud</span>
+        <span><span class="dot" style="background:#d97706"></span>Nurture / win-back</span>
+        <span><span class="dot" style="background:#dc2626"></span>Terminal &mdash; verloren</span>
+      </div>
+      <div class="canvas-scroll">
+        <svg id="edge-layer" class="canvas"></svg>
+      </div>
+    </div>
+
+    <div class="footnote">
+      <b>Hoe werkt dit?</b> Elke knoop staat voor een fase in het traject. De pijlen zijn de realistische vervolgstappen vanuit die fase &mdash;
+      inclusief loops (bv. "Wijzigingen gevraagd" &rarr; terug naar "in uitvoering"), terugval (bv. "Afgehaakt" &rarr; "Win-back"), en dead-ends (rode knopen).
+      In het detailpaneel van een knoop kun je een lead naar elke toegestane vervolgstap verplaatsen, of in uitzonderingsgevallen handmatig naar een andere fase overschrijven.
+    </div>
+  </div>
+
+  <!-- ===================== INBOX SECTION ===================== -->
+  <div class="section" id="section-inbox">
+    <div class="panel">
+      <div class="panel-title">Leads ophalen van internet</div>
+      <div class="panel-desc">
+        <b>Volledig automatisch:</b> elke ochtend rond 08:00 doorzoekt een achtergrondtaak Google Maps volgens een vaste, roterende lijst van branches
+        (kapper, nagelsalon, coach, rijschool, aannemer/bouw, horeca) en regio's (Rotterdam, Amsterdam, Utrecht, Den Haag, Eindhoven e.o.), en zet nieuwe
+        bedrijven zonder eigen website hier in de inbox. Je hoeft hier niets voor te doen &mdash; open dit dashboard en klik op "Vernieuwen" om de nieuwste
+        leads te zien.
+        <br><br>
+        <b>Extra zoekopdracht tussendoor?</b> Vul de criteria hieronder in en klik "Zoek leads op". Dit probeert het onderzoek direct te starten; lukt dat
+        niet (afhankelijk van de omgeving), dan krijg je een kant-en-klaar tekstblok om in de chat te plakken.
+        <br><br>
+        <b>Bij de eerste automatische run</b> kan Claude eenmalig om toestemming vragen voor browsertoegang &mdash; daarna verlopen vervolgruns zonder onderbreking.
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Branche</label>
+          <input type="text" id="req-branche" placeholder="bijv. kappers">
+        </div>
+        <div class="field">
+          <label>Regio</label>
+          <input type="text" id="req-regio" placeholder="bijv. Utrecht">
+        </div>
+        <div class="field">
+          <label>Min. reviews</label>
+          <input type="number" id="req-reviews" value="10" min="0">
+        </div>
+        <div class="field">
+          <label>Min. cijfer</label>
+          <input type="number" id="req-rating" value="4.0" min="0" max="5" step="0.1">
+        </div>
+        <div class="field">
+          <button class="btn" id="add-request-btn" style="width:100%;">Zoek leads op</button>
+        </div>
+      </div>
+      <div id="research-status" style="margin-top:12px; font-size:12.5px; color:#8a8a96;"></div>
+    </div>
+
+    <div class="panel" id="requests-panel" style="display:none;">
+      <div class="panel-title">Onderzoeksgeschiedenis</div>
+      <div class="panel-desc">Log van eerder gestarte zoekopdrachten.</div>
+      <div id="requests-list"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Leads inbox</div>
+      <div class="panel-desc">Bedrijven gevonden via internet-onderzoek, nog niet in de funnel. Selecteer leads en plaats ze direct bij "Nieuwe lead".</div>
+      <div id="fb-status" style="font-size:11.5px; color:#8a8a96; margin-bottom:10px; font-weight:600;">Firebase: initialiseren...</div>
+      <div class="filters">
+        <div class="filter-group" style="min-width:220px;">
+          <label>Zoeken</label>
+          <input type="text" id="f-search" placeholder="Naam, adres, telefoon, regio...">
+        </div>
+        <div class="filter-group">
+          <label>Branche</label>
+          <select id="f-branche"><option value="">Alle</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Regio</label>
+          <select id="f-regio"><option value="">Alle</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Min. reviews</label>
+          <input type="number" id="f-reviews" min="0" value="0">
+        </div>
+        <div class="filter-group">
+          <label>Min. cijfer</label>
+          <input type="number" id="f-rating" min="0" max="5" step="0.1" value="0">
+        </div>
+        <div class="filter-group">
+          <label>Max resultaten</label>
+          <select id="f-limit">
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+            <option value="250">250</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+            <option value="all">Alle</option>
+          </select>
+        </div>
+        <div class="filter-group" style="flex-direction:row; align-items:center; gap:6px; min-width:auto;">
+          <input type="checkbox" id="f-show-no-phone" checked style="width:auto;">
+          <label style="text-transform:none; font-size:12px; font-weight:600; color:#3a3a44;">Toon leads zonder telefoonnummer</label>
+        </div>
+        <div class="filter-group" style="justify-content:flex-end;">
+          <button class="btn" id="reset-filters-btn">Filters wissen</button>
+        </div>
+        <div class="filter-group" style="justify-content:flex-end;">
+          <button class="btn" id="move-to-funnel-btn">Verplaats geselecteerde naar funnel</button>
+        </div>
+      </div>
+      <div id="inbox-count" class="panel-desc" style="margin-top:-4px;"></div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:28px;"><input type="checkbox" id="select-all"></th>
+            <th>Bedrijf</th>
+            <th>Branche</th>
+            <th>Regio / adres</th>
+            <th>Cijfer</th>
+            <th>Reviews</th>
+            <th>Telefoon</th>
+          </tr>
+        </thead>
+        <tbody id="inbox-body"></tbody>
+      </table>
+      <div id="inbox-empty" class="empty-msg" style="display:none;">Geen leads in de inbox. Vraag hierboven een nieuwe zoekopdracht aan.</div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    <b>Pakketten (mopromax.com):</b> Starter &euro;199 &middot; Pro &euro;349 &middot; Pro Max &euro;849 &middot; Custom op aanvraag.
+    Onderhoud: &euro;19/mnd (basis) of &euro;35/mnd (Pro Max / priority support). Alle gegevens staan centraal in Firebase Firestore (geen lokale opslag).
+  </div>
+</div>
+
+<!-- ===================== SIDE PANEL (node detail) ===================== -->
+<div class="backdrop-dim" id="backdrop-dim"></div>
+<div class="side-panel" id="side-panel">
+  <div class="side-panel-header">
+    <h2 id="side-panel-title">Knoop</h2>
+    <button class="close-x" id="side-panel-close">&times;</button>
+  </div>
+  <div class="node-desc" id="side-panel-desc"></div>
+  <div id="side-panel-body"></div>
+</div>
+
+<!-- ===================== MODAL (add/edit deal) ===================== -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <h2 id="modal-title">Nieuwe deal</h2>
+    <form id="deal-form">
+      <input type="hidden" id="deal-id">
+      <div class="field"><label>Bedrijfsnaam *</label><input type="text" id="f-naam" required></div>
+      <div class="row-2">
+        <div class="field"><label>Contactpersoon</label><input type="text" id="f-contact"></div>
+        <div class="field">
+          <label>Branche</label>
+          <select id="f-branche-modal">
+            <option>Kapper</option><option>Nagelsalon</option><option>Coach</option>
+            <option>Rijschool</option><option>Aannemer / bouw</option><option>Horeca</option><option>Anders</option>
+          </select>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Telefoon</label><input type="text" id="f-telefoon"></div>
+        <div class="field"><label>E-mail</label><input type="email" id="f-email"></div>
+      </div>
+      <div class="field">
+        <label>Pakket</label>
+        <select id="f-pakket">
+          <option value="Starter|199">Starter — €199</option>
+          <option value="Pro|349">Pro — €349</option>
+          <option value="Pro Max|849">Pro Max — €849</option>
+          <option value="Custom|0">Custom — op aanvraag</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Extra diensten</label>
+        <div class="checkbox-grid">
+          <label><input type="checkbox" id="f-branding"> Branding &amp; Huisstijl</label>
+          <label><input type="checkbox" id="f-techniek"> Techniek (boekingssysteem / webshop)</label>
+          <label><input type="checkbox" id="f-seo"> SEO &amp; vindbaarheid</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Onderhoudscontract</label>
+        <select id="f-onderhoud">
+          <option value="0">Geen</option>
+          <option value="19">Basis — €19/mnd</option>
+          <option value="35">Priority — €35/mnd</option>
+        </select>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Eenmalige waarde (€)</label><input type="number" id="f-waarde" min="0"></div>
+        <div class="field">
+          <label>Startpositie in funnel</label>
+          <select id="f-node"></select>
+        </div>
+      </div>
+      <div class="field"><label>Notities</label><textarea id="f-notities"></textarea></div>
+      <div class="modal-actions">
+        <button type="button" class="btn secondary" id="cancel-btn">Annuleren</button>
+        <button type="submit" class="btn">Opslaan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   DATA MODEL: nodes & edges define the non-linear sales/delivery funnel
+   ========================================================================= */
+const NODES = [
+  { id: 1,  label: "Nieuwe lead",                        phase: 0, x: 40,   y: 40  },
+  { id: 2,  label: "Gekwalificeerd (MQL)",                phase: 0, x: 40,   y: 150 },
+  { id: 3,  label: "Gediskwalificeerd",                   phase: 0, x: 40,   y: 260, type: "terminal-lost" },
+
+  { id: 4,  label: "Eerste contact gelegd",               phase: 1, x: 310,  y: 40  },
+  { id: 6,  label: "Kennismaking gepland",                phase: 1, x: 310,  y: 150 },
+  { id: 7,  label: "Behoefteanalyse afgerond",            phase: 1, x: 310,  y: 260 },
+  { id: 5,  label: "Geen reactie",                        phase: 1, x: 310,  y: 370, type: "nurture" },
+  { id: 8,  label: "Afgehaakt na analyse",                phase: 1, x: 310,  y: 480, type: "terminal-lost" },
+
+  { id: 9,  label: "Voorstel in opstelling",              phase: 2, x: 580,  y: 40  },
+  { id: 10, label: "Voorstel verstuurd",                  phase: 2, x: 580,  y: 150 },
+  { id: 11, label: "Onderhandeling",                      phase: 2, x: 580,  y: 260 },
+  { id: 14, label: "Deal gewonnen (intake)",               phase: 2, x: 580,  y: 370, type: "terminal-won" },
+  { id: 12, label: "Voorstel afgewezen",                  phase: 2, x: 580,  y: 480, type: "terminal-lost" },
+  { id: 13, label: "On hold / later opnieuw",             phase: 2, x: 580,  y: 590, type: "nurture" },
+
+  { id: 15, label: "Design in uitvoering",                phase: 3, x: 850,  y: 40  },
+  { id: 16, label: "Design ter review bij klant",         phase: 3, x: 850,  y: 150 },
+  { id: 17, label: "Wijzigingen gevraagd (design)",       phase: 3, x: 850,  y: 260, type: "nurture" },
+  { id: 18, label: "Design goedgekeurd",                  phase: 3, x: 850,  y: 370 },
+  { id: 19, label: "Afgehaakt tijdens design",            phase: 3, x: 850,  y: 480, type: "terminal-lost" },
+
+  { id: 20, label: "Ontwikkeling gestart",                phase: 4, x: 1120, y: 40  },
+  { id: 21, label: "Interne QA",                          phase: 4, x: 1120, y: 150 },
+  { id: 22, label: "Klant UAT (acceptatietest)",          phase: 4, x: 1120, y: 260 },
+  { id: 23, label: "Wijzigingen gevraagd (ontwikkeling)", phase: 4, x: 1120, y: 370, type: "nurture" },
+  { id: 24, label: "Ontwikkeling afgerond",               phase: 4, x: 1120, y: 480 },
+  { id: 25, label: "Project stopgezet",                   phase: 4, x: 1120, y: 590, type: "terminal-lost" },
+
+  { id: 26, label: "Implementatie gepland",               phase: 5, x: 1390, y: 40  },
+  { id: 27, label: "Livegang uitgevoerd",                 phase: 5, x: 1390, y: 150 },
+  { id: 28, label: "Issues na livegang",                  phase: 5, x: 1390, y: 260, type: "nurture" },
+  { id: 29, label: "Livegang succesvol",                  phase: 5, x: 1390, y: 370, type: "terminal-won" },
+
+  { id: 30, label: "Onderhoud voorgesteld",               phase: 6, x: 1660, y: 40  },
+  { id: 32, label: "Actief onderhoudscontract",           phase: 6, x: 1660, y: 150, type: "ongoing" },
+  { id: 31, label: "Onderhoud geweigerd",                 phase: 6, x: 1660, y: 260, type: "terminal-won" },
+  { id: 33, label: "Onderhoud opgezegd (churn)",          phase: 6, x: 1660, y: 370, type: "terminal-lost" },
+
+  { id: 34, label: "Win-back / opnieuw benaderen",        phase: 7, x: 850,  y: 750, type: "nurture" }
+];
+
+const EDGES = [
+  [1,2],[1,3],
+  [2,4],
+  [4,6],[4,5],
+  [6,7],[6,5],
+  [7,9],[7,8],
+  [5,34],[8,34],
+  [9,10],
+  [10,11],[10,14],[10,12],
+  [11,14],[11,12],
+  [12,13],
+  [13,34],[13,2],
+  [14,15],
+  [15,16],
+  [16,18],[16,17],[16,19],
+  [17,15],
+  [18,20],
+  [20,21],
+  [21,22],[21,25],
+  [22,24],[22,23],
+  [23,20],
+  [24,26],
+  [26,27],
+  [27,29],[27,28],
+  [28,20],
+  [29,30],
+  [30,32],[30,31],
+  [32,33],
+  [33,34],
+  [34,6]
+];
+
+const PROB = {1:5,2:10,3:0,4:15,5:8,6:20,7:30,8:0,9:35,10:40,11:55,12:0,13:12,14:90,
+  15:90,16:90,17:85,18:92,19:0,20:93,21:94,22:94,23:90,24:96,25:0,26:97,27:97,28:92,29:100,
+  30:98,31:100,32:100,33:0,34:12};
+
+const PHASE_COLOR = ["#64748b","#6366f1","#8b5cf6","#3b82f6","#06b6d4","#14b8a6","#22c55e","#d97706"];
+const PHASE_NAME = ["Acquisitie","Ontdekking","Voorstel","Ontwerp","Ontwikkeling","Implementatie","Onderhoud","Nurture"];
+
+const NODE_W = 210, NODE_H = 62;
+const nodeById = Object.fromEntries(NODES.map(n => [n.id, n]));
+
+/* =========================================================================
+   STATE — uitsluitend Firebase Firestore, geen localStorage en geen
+   ingebakken seed-data. Het dashboard start leeg en wordt volledig gevuld
+   zodra fbInit() de data uit Firestore heeft opgehaald.
+   ========================================================================= */
+function loadState() {
+  return { inboxLeads: [], deals: [], requests: [] };
+}
+function saveState() {
+  if (firebaseReady) {
+    fbSyncPush().catch(e => console.warn("Firebase sync (push) mislukt", e));
+  }
+}
+
+let state = loadState();
+
+/* =========================================================================
+   FIREBASE (Firestore REST API) — de enige databron van het dashboard.
+   Geen SDK nodig: alles via fetch() naar de Firestore/Identity Toolkit REST-
+   endpoints, zodat er geen externe scripts geladen hoeven worden. Geen
+   localStorage: elke pagina-load haalt de actuele data live uit Firestore op.
+   ========================================================================= */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAHCOSwDSf4wBQKAcWC0NG6z-guBJFl39Y",
+  projectId: "mpms-e59f8",
+  databaseId: "mpms1"
+};
+const FS_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/${FIREBASE_CONFIG.databaseId}/documents`;
+const LEAD_CHUNK_SIZE = 1500; // blijft ruim onder Firestore's 1MiB per-document limiet
+
+let fbAuth = null;          // { idToken, expiresAt } — alleen in geheugen, niet opgeslagen
+let firebaseReady = false;  // true zodra de eerste pull uit Firestore is gelukt
+let fbSyncInFlight = false;
+let fbLastMeta = null;
+let lastLeadsSignature = null;
+
+function fbSetStatus(text, ok) {
+  const el = document.getElementById("fb-status");
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = ok === true ? "#1a9e5c" : ok === false ? "#c0392b" : "#8a8a96";
+}
+
+async function fbSignInAnonymously() {
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_CONFIG.apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ returnSecureToken: true })
+  });
+  if (!res.ok) throw new Error("Anoniem inloggen mislukt (status " + res.status + "). Staat Anonymous sign-in aan in Firebase Authentication?");
+  const data = await res.json();
+  return { idToken: data.idToken, refreshToken: data.refreshToken, expiresAt: Date.now() + (Number(data.expiresIn) || 3600) * 1000 - 60000 };
+}
+
+async function fbRefreshToken(refreshToken) {
+  const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${FIREBASE_CONFIG.apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`
+  });
+  if (!res.ok) throw new Error("Firebase token vernieuwen mislukt (status " + res.status + ")");
+  const data = await res.json();
+  return { idToken: data.id_token, refreshToken: data.refresh_token, expiresAt: Date.now() + (Number(data.expires_in) || 3600) * 1000 - 60000 };
+}
+
+async function fbEnsureAuth() {
+  // Niets wordt opgeslagen (geen localStorage): binnen één pagina-load wordt het
+  // token in het geheugen hergebruikt/ververst; bij een nieuwe pagina-load wordt
+  // gewoon opnieuw anoniem ingelogd.
+  if (fbAuth && fbAuth.idToken && fbAuth.expiresAt > Date.now()) return fbAuth.idToken;
+  try {
+    fbAuth = (fbAuth && fbAuth.refreshToken) ? await fbRefreshToken(fbAuth.refreshToken) : await fbSignInAnonymously();
+  } catch (e) {
+    fbAuth = await fbSignInAnonymously();
+  }
+  return fbAuth.idToken;
+}
+
+/* ---- Firestore REST <-> plain JS waarden ---- */
+function toFsValue(v) {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === "string") return { stringValue: v };
+  if (typeof v === "boolean") return { booleanValue: v };
+  if (typeof v === "number") return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(toFsValue) } };
+  if (typeof v === "object") return { mapValue: { fields: toFsFields(v) } };
+  return { stringValue: String(v) };
+}
+function fromFsValue(fv) {
+  if (!fv) return null;
+  if ("stringValue" in fv) return fv.stringValue;
+  if ("integerValue" in fv) return Number(fv.integerValue);
+  if ("doubleValue" in fv) return Number(fv.doubleValue);
+  if ("booleanValue" in fv) return fv.booleanValue;
+  if ("nullValue" in fv) return null;
+  if ("timestampValue" in fv) return fv.timestampValue;
+  if ("arrayValue" in fv) return (fv.arrayValue.values || []).map(fromFsValue);
+  if ("mapValue" in fv) return fromFsFields(fv.mapValue.fields);
+  return null;
+}
+function toFsFields(obj) { return Object.fromEntries(Object.entries(obj || {}).map(([k, v]) => [k, toFsValue(v)])); }
+function fromFsFields(fields) { return Object.fromEntries(Object.entries(fields || {}).map(([k, v]) => [k, fromFsValue(v)])); }
+
+async function fbGetDoc(path) {
+  const idToken = await fbEnsureAuth();
+  const res = await fetch(`${FS_BASE}/${path}`, { headers: { "Authorization": "Bearer " + idToken } });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Firestore GET " + path + " faalde: " + res.status);
+  const data = await res.json();
+  return fromFsFields(data.fields);
+}
+
+async function fbDeleteDoc(path) {
+  const idToken = await fbEnsureAuth();
+  await fetch(`${FS_BASE}/${path}`, { method: "DELETE", headers: { "Authorization": "Bearer " + idToken } });
+}
+
+async function fbListCollection(collectionPath) {
+  // Gebruikt :runQuery i.p.v. de simpele "list documents" REST-call: die laatste
+  // wordt in dit project door Firestore geweigerd (403) ook met correcte rules
+  // en een geldig token, terwijl runQuery met dezelfde auth wel werkt.
+  const idToken = await fbEnsureAuth();
+  const out = [];
+  let done = false;
+  let cursor = null;
+  while (!done) {
+    const structuredQuery = { from: [{ collectionId: collectionPath }], limit: 1000 };
+    if (cursor) structuredQuery.startAt = { values: [cursor], before: false };
+    structuredQuery.orderBy = [{ field: { fieldPath: "__name__" }, direction: "ASCENDING" }];
+    const res = await fetch(`${FS_BASE}:runQuery`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + idToken },
+      body: JSON.stringify({ structuredQuery })
+    });
+    if (!res.ok) throw new Error("Firestore runQuery " + collectionPath + " faalde: " + res.status + " " + (await res.text().catch(() => "")));
+    const data = await res.json();
+    const items = (Array.isArray(data) ? data : []).filter(item => item && item.document);
+    items.forEach(item => out.push({ id: item.document.name.split("/").pop(), data: fromFsFields(item.document.fields) }));
+    if (items.length < 1000) {
+      done = true;
+    } else {
+      cursor = { referenceValue: items[items.length - 1].document.name };
+    }
+  }
+  return out;
+}
+
+async function fbBatchWrite(writes) {
+  // Gebruikt :commit (het endpoint dat Firestore's eigen SDK's gebruiken voor
+  // batched writes, en dat door de security rules wordt gehandhaafd) i.p.v.
+  // :batchWrite, dat in dit project met een geldig auth-token toch 403 gaf
+  // (batchWrite lijkt verhoogde IAM-rechten te vereisen, niet beschikbaar
+  // voor via Firebase Auth ingelogde clients). Max 500 writes per commit-call.
+  for (let i = 0; i < writes.length; i += 400) {
+    const group = writes.slice(i, i + 400);
+    const idToken = await fbEnsureAuth();
+    const body = {
+      writes: group.map(w => ({
+        update: {
+          name: `projects/${FIREBASE_CONFIG.projectId}/databases/${FIREBASE_CONFIG.databaseId}/documents/${w.path}`,
+          fields: toFsFields(w.fields)
+        }
+      }))
+    };
+    const res = await fetch(`${FS_BASE}:commit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + idToken },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error("Firestore commit faalde: " + res.status + " " + (await res.text().catch(() => "")));
+  }
+}
+
+async function fbSetDoc(path, fields) {
+  await fbBatchWrite([{ path, fields }]);
+}
+
+function chunkLeads(leads) {
+  const chunks = [];
+  for (let i = 0; i < leads.length; i += LEAD_CHUNK_SIZE) chunks.push(leads.slice(i, i + LEAD_CHUNK_SIZE));
+  return chunks;
+}
+function leadsSignature(leads) {
+  if (!leads.length) return "0::";
+  return leads.length + ":" + leads[0].id + ":" + leads[leads.length - 1].id;
+}
+
+async function fbPushFullState(current) {
+  const writes = [];
+  const chunks = chunkLeads(current.inboxLeads);
+  chunks.forEach((items, i) => writes.push({ path: `leadChunks/chunk_${i}`, fields: { items, count: items.length } }));
+  current.deals.forEach(d => writes.push({ path: `deals/${d.id}`, fields: d }));
+  current.requests.forEach(r => writes.push({ path: `requests/${r.id}`, fields: r }));
+  await fbBatchWrite(writes);
+  await fbSetDoc("meta/status", {
+    migrated: true, lastSync: new Date().toISOString(), leadChunkCount: chunks.length,
+    leadCount: current.inboxLeads.length, dealCount: current.deals.length, requestCount: current.requests.length
+  });
+  fbLastMeta = { migrated: true, leadChunkCount: chunks.length };
+  lastLeadsSignature = leadsSignature(current.inboxLeads);
+}
+
+async function fbPullFullState() {
+  const [chunkDocs, dealDocs, requestDocs] = await Promise.all([
+    fbListCollection("leadChunks"), fbListCollection("deals"), fbListCollection("requests")
+  ]);
+  chunkDocs.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  const inboxLeads = [];
+  chunkDocs.forEach(c => { if (Array.isArray(c.data.items)) inboxLeads.push(...c.data.items); });
+  return { inboxLeads, deals: dealDocs.map(d => d.data), requests: requestDocs.map(d => d.data) };
+}
+
+async function fbSyncPush() {
+  if (!firebaseReady || fbSyncInFlight) return;
+  fbSyncInFlight = true;
+  fbSetStatus("Firebase: synchroniseren...", null);
+  try {
+    const sig = leadsSignature(state.inboxLeads);
+    const writes = [];
+    if (sig !== lastLeadsSignature) {
+      const chunks = chunkLeads(state.inboxLeads);
+      chunks.forEach((items, i) => writes.push({ path: `leadChunks/chunk_${i}`, fields: { items, count: items.length } }));
+      if (fbLastMeta && fbLastMeta.leadChunkCount > chunks.length) {
+        for (let i = chunks.length; i < fbLastMeta.leadChunkCount; i++) await fbDeleteDoc(`leadChunks/chunk_${i}`);
+      }
+      fbLastMeta = { migrated: true, leadChunkCount: chunks.length };
+      lastLeadsSignature = sig;
+    }
+    state.deals.forEach(d => writes.push({ path: `deals/${d.id}`, fields: d }));
+    state.requests.forEach(r => writes.push({ path: `requests/${r.id}`, fields: r }));
+    if (writes.length) await fbBatchWrite(writes);
+    await fbSetDoc("meta/status", {
+      migrated: true, lastSync: new Date().toISOString(), leadChunkCount: fbLastMeta.leadChunkCount,
+      leadCount: state.inboxLeads.length, dealCount: state.deals.length, requestCount: state.requests.length
+    });
+    fbSetStatus("Firebase: gesynchroniseerd " + new Date().toLocaleTimeString("nl-NL"), true);
+  } catch (e) {
+    console.warn("Firebase sync (push) mislukt, lokale data blijft leidend", e);
+    fbSetStatus("Firebase: sync mislukt, lokale data actief", false);
+  } finally {
+    fbSyncInFlight = false;
+  }
+}
+
+async function fbInit() {
+  // Firestore is de enige databron: er is geen lokale seed-data en geen
+  // localStorage-cache meer. Bij elke pagina-load wordt alles vers opgehaald.
+  fbSetStatus("Firebase: laden...", null);
+  try {
+    await fbEnsureAuth();
+    const meta = await fbGetDoc("meta/status");
+    fbLastMeta = meta || { leadChunkCount: 0 };
+    const remote = await fbPullFullState();
+    state = remote;
+    lastLeadsSignature = leadsSignature(state.inboxLeads);
+    firebaseReady = true;
+    fbSetStatus(
+      "Firebase: gesynchroniseerd " + new Date().toLocaleTimeString("nl-NL") +
+      " (" + state.inboxLeads.length + " leads)", true
+    );
+    renderSummary();
+    renderFlowchart();
+    renderInbox();
+    renderRequests();
+  } catch (e) {
+    console.warn("Firebase init mislukt", e);
+    fbSetStatus("Firebase: niet verbonden — geen data geladen. Vernieuw de pagina om opnieuw te proberen.", false);
+  }
+}
+fbInit();
+
+/* =========================================================================
+   HELPERS
+   ========================================================================= */
+function fmtEuro(n) { return "€" + Number(n || 0).toLocaleString("nl-NL"); }
+function outgoing(nodeId) { return EDGES.filter(e => e[0] === nodeId).map(e => e[1]); }
+function nodeType(n) { return n.type || "normal"; }
+
+// Defensive event binding: never let a missing element halt the whole script.
+function on(id, event, handler) {
+  try {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(event, handler);
+    else console.warn("mopromax dashboard: element not found for binding:", id);
+  } catch (e) {
+    console.error("mopromax dashboard: failed to bind", id, e);
+  }
+}
+
+/* =========================================================================
+   TAB SWITCHING
+   ========================================================================= */
+try {
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+      const target = document.getElementById("section-" + btn.dataset.tab);
+      if (target) target.classList.add("active");
+    });
+  });
+} catch (e) { console.error("tab-btn wiring failed", e); }
+
+/* =========================================================================
+   SUMMARY DASHBOARD
+   ========================================================================= */
+function renderSummary() {
+  const deals = state.deals;
+  const activeDeals = deals.filter(d => nodeType(nodeById[d.node]) !== "terminal-lost");
+  const wonOrOngoing = deals.filter(d => [14,29,31,32].includes(d.node));
+  const lost = deals.filter(d => nodeType(nodeById[d.node]) === "terminal-lost");
+  const pipelineValue = activeDeals.reduce((s,d) => s + (Number(d.waarde)||0), 0);
+  const weighted = activeDeals.reduce((s,d) => s + (Number(d.waarde)||0) * (PROB[d.node]||0)/100, 0);
+  const mrr = deals.filter(d => d.node === 32).reduce((s,d) => s + (Number(d.onderhoud)||0), 0);
+  const closedTotal = wonOrOngoing.length + lost.length;
+  const winRate = closedTotal > 0 ? Math.round((wonOrOngoing.length / closedTotal) * 100) : 0;
+
+  const cards = [
+    { label: "Leads in inbox", value: state.inboxLeads.length, sub: "wachtend op kwalificatie", accent:false },
+    { label: "Actieve deals", value: activeDeals.length, sub: `${deals.length} totaal ooit ingeladen` , accent:false},
+    { label: "Pipeline waarde", value: fmtEuro(pipelineValue), sub: "actieve eenmalige waarde", accent:true },
+    { label: "Gewogen forecast", value: fmtEuro(weighted), sub: "waarde × winkans per fase", accent:true },
+    { label: "MRR onderhoud", value: fmtEuro(mrr) + "/mnd", sub: `${deals.filter(d=>d.node===32).length} actieve contracten`, accent:true },
+    { label: "Win rate", value: winRate + "%", sub: `${wonOrOngoing.length} gewonnen / ${lost.length} verloren`, accent:false }
+  ];
+  document.getElementById("summary").innerHTML = cards.map(c => `
+    <div class="card ${c.accent ? "accent" : ""}">
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}</div>
+      <div class="sub">${c.sub}</div>
+    </div>
+  `).join("");
+}
+
+/* =========================================================================
+   FLOWCHART RENDERING
+   ========================================================================= */
+function edgeStyle(from, to) {
+  const toN = to; // `to` is already the resolved node object (fix: was incorrectly re-looked-up via nodeById[to], which always returned undefined and crashed renderFlowchart)
+  if (nodeType(toN) === "terminal-lost") return { stroke: "#dc2626", dash: "0", opacity: 0.55 };
+  if (toN.x < from.x || (toN.x === from.x && toN.y < from.y)) return { stroke: "#d97706", dash: "5,4", opacity: 0.55 };
+  return { stroke: "#a8a7b3", dash: "0", opacity: 0.7 };
+}
+
+function edgePath(from, to) {
+  const fx = from.x + NODE_W, fy = from.y + NODE_H/2;
+  const isBackward = to.x < from.x;
+  const isSameCol = to.x === from.x;
+
+  if (isBackward) {
+    const tx = to.x + NODE_W/2, ty = to.y + NODE_H;
+    const midY = Math.max(from.y, to.y) + NODE_H + 40;
+    return `M ${fx-NODE_W/2} ${from.y+NODE_H} C ${fx-NODE_W/2} ${midY}, ${tx} ${midY}, ${tx} ${ty}`;
+  } else if (isSameCol) {
+    const tx = to.x + NODE_W, ty = to.y + NODE_H/2;
+    const off = 46;
+    return `M ${fx} ${fy} C ${fx+off} ${fy}, ${tx+off} ${ty}, ${tx} ${ty}`;
+  } else {
+    const tx = to.x, ty = to.y + NODE_H/2;
+    const midX = (fx + tx) / 2;
+    return `M ${fx} ${fy} C ${midX} ${fy}, ${midX} ${ty}, ${tx} ${ty}`;
+  }
+}
+
+function renderFlowchart() {
+  const maxX = Math.max(...NODES.map(n => n.x)) + NODE_W + 60;
+  const maxY = Math.max(...NODES.map(n => n.y)) + NODE_H + 60;
+  const svg = document.getElementById("edge-layer");
+  svg.setAttribute("width", maxX);
+  svg.setAttribute("height", maxY);
+  svg.style.width = maxX + "px";
+  svg.style.height = maxY + "px";
+  svg.innerHTML = `
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#9a9aa4"></path>
+      </marker>
+      <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#dc2626"></path>
+      </marker>
+      <marker id="arrow-amber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L6,3 L0,6 Z" fill="#d97706"></path>
+      </marker>
+    </defs>
+  `;
+
+  EDGES.forEach(([fromId, toId]) => {
+    const from = nodeById[fromId], to = nodeById[toId];
+    const style = edgeStyle(from, to);
+    const marker = style.stroke === "#dc2626" ? "arrow-red" : (style.stroke === "#d97706" ? "arrow-amber" : "arrow");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", edgePath(from, to));
+    path.setAttribute("stroke", style.stroke);
+    path.setAttribute("stroke-width", "1.6");
+    path.setAttribute("stroke-dasharray", style.dash);
+    path.setAttribute("opacity", style.opacity);
+    path.setAttribute("fill", "none");
+    path.setAttribute("marker-end", `url(#${marker})`);
+    svg.appendChild(path);
+  });
+
+  document.querySelectorAll(".node").forEach(n => n.remove());
+  NODES.forEach(n => {
+    const count = state.deals.filter(d => d.node === n.id).length;
+    const div = document.createElement("div");
+    div.className = "node " + (n.type || "");
+    div.style.left = n.x + "px";
+    div.style.top = n.y + "px";
+    div.style.width = NODE_W + "px";
+    div.style.minHeight = NODE_H + "px";
+    div.style.borderLeftColor = n.type === "terminal-lost" ? "#dc2626" : (n.type === "nurture" ? "#d97706" : (n.type === "ongoing" ? "#16a34a" : PHASE_COLOR[n.phase]));
+    div.innerHTML = `
+      <div class="node-label">${n.label}</div>
+      <div class="node-phase">${PHASE_NAME[n.phase]}</div>
+      ${count > 0 ? `<div class="node-badge">${count}</div>` : ""}
+    `;
+    div.addEventListener("click", () => openNodePanel(n.id));
+    svg.parentElement.appendChild(div);
+  });
+}
+
+function openSidePanel() {
+  document.getElementById("side-panel").classList.add("open");
+  document.getElementById("backdrop-dim").classList.add("open");
+}
+function closeSidePanel() {
+  document.getElementById("side-panel").classList.remove("open");
+  document.getElementById("backdrop-dim").classList.remove("open");
+}
+
+function openNodePanel(nodeId) {
+  const n = nodeById[nodeId];
+  if (!n) return;
+  document.getElementById("side-panel-title").textContent = n.label;
+  document.getElementById("side-panel-desc").textContent =
+    `Fase: ${PHASE_NAME[n.phase]} · winkans ${PROB[n.id] || 0}%`;
+
+  const dealsHere = state.deals.filter(d => d.node === nodeId);
+  const nextIds = outgoing(nodeId);
+
+  const body = document.getElementById("side-panel-body");
+  if (dealsHere.length === 0) {
+    body.innerHTML = `<div class="empty-msg">Nog geen deals in deze fase.</div>`;
+  } else {
+    body.innerHTML = dealsHere.map(d => `
+      <div class="deal-card" style="border:1px solid #2a2a33; border-radius:8px; padding:10px; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+          <div>
+            <div style="font-weight:600;">${d.naam}</div>
+            <div style="font-size:12px; color:#8a8a96;">${d.branche || ""} ${d.contact ? "· " + d.contact : ""}</div>
+          </div>
+          <button class="btn secondary edit-deal-btn" data-id="${d.id}" style="padding:4px 10px; font-size:12px;">Bewerken</button>
+        </div>
+        <div style="font-size:12px; color:#8a8a96; margin-top:6px;">
+          ${d.telefoon ? "Tel: " + d.telefoon + " · " : ""}${d.waarde ? fmtEuro(d.waarde) : ""}
+        </div>
+        <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+          <select class="move-target" data-id="${d.id}" style="flex:1; min-width:160px;">
+            <option value="">Verplaats naar…</option>
+            ${nextIds.map(id => `<option value="${id}">${nodeById[id].label}</option>`).join("")}
+            <option value="" disabled>──────────</option>
+            ${NODES.map(nn => `<option value="${nn.id}">(handmatig) ${nn.label}</option>`).join("")}
+          </select>
+          <button class="btn move-deal-btn" data-id="${d.id}" style="padding:6px 10px; font-size:12px;">Verplaats</button>
+        </div>
+      </div>
+    `).join("");
+
+    body.querySelectorAll(".edit-deal-btn").forEach(btn => {
+      btn.addEventListener("click", () => openDealModal(btn.dataset.id));
+    });
+    body.querySelectorAll(".move-deal-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const select = body.querySelector(`.move-target[data-id="${btn.dataset.id}"]`);
+        const target = Number(select.value);
+        if (!target) return;
+        const deal = state.deals.find(d => d.id === btn.dataset.id);
+        if (deal) {
+          deal.node = target;
+          saveState();
+          renderSummary();
+          renderFlowchart();
+          openNodePanel(nodeId);
+        }
+      });
+    });
+  }
+
+  openSidePanel();
+}
+
+on("side-panel-close", "click", closeSidePanel);
+on("backdrop-dim", "click", closeSidePanel);
+
+function populateNodeSelect() {
+  const sel = document.getElementById("f-node");
+  if (!sel) return;
+  sel.innerHTML = NODES.map(n => `<option value="${n.id}">${n.label}</option>`).join("");
+}
+
+function openDealModal(dealId, prefill) {
+  populateNodeSelect();
+  const form = document.getElementById("deal-form");
+  form.reset();
+  document.getElementById("deal-id").value = "";
+  document.getElementById("modal-title").textContent = "Nieuwe deal";
+
+  if (dealId) {
+    const deal = state.deals.find(d => d.id === dealId);
+    if (deal) {
+      document.getElementById("modal-title").textContent = "Deal bewerken";
+      document.getElementById("deal-id").value = deal.id;
+      document.getElementById("f-naam").value = deal.naam || "";
+      document.getElementById("f-contact").value = deal.contact || "";
+      if (deal.branche) document.getElementById("f-branche-modal").value = deal.branche;
+      document.getElementById("f-telefoon").value = deal.telefoon || "";
+      document.getElementById("f-email").value = deal.email || "";
+      document.getElementById("f-pakket").value = deal.pakketKey || "Starter|199";
+      document.getElementById("f-branding").checked = !!deal.branding;
+      document.getElementById("f-techniek").checked = !!deal.techniek;
+      document.getElementById("f-seo").checked = !!deal.seo;
+      document.getElementById("f-onderhoud").value = String(deal.onderhoud || 0);
+      document.getElementById("f-waarde").value = deal.waarde || 0;
+      document.getElementById("f-node").value = String(deal.node || 1);
+      document.getElementById("f-notities").value = deal.notities || "";
+    }
+  } else if (prefill) {
+    document.getElementById("f-naam").value = prefill.naam || "";
+    document.getElementById("f-telefoon").value = prefill.telefoon || "";
+    if (prefill.branche) {
+      const sel = document.getElementById("f-branche-modal");
+      const match = Array.from(sel.options).find(o => o.value.toLowerCase() === prefill.branche.toLowerCase());
+      sel.value = match ? match.value : "Anders";
+    }
+    document.getElementById("f-notities").value = prefill.notities || "";
+    document.getElementById("f-node").value = "1";
+  }
+
+  document.getElementById("modal-backdrop").classList.add("open");
+}
+function closeDealModal() {
+  document.getElementById("modal-backdrop").classList.remove("open");
+}
+
+on("new-deal-btn", "click", () => openDealModal(null));
+on("cancel-btn", "click", closeDealModal);
+on("modal-backdrop", "click", (e) => { if (e.target.id === "modal-backdrop") closeDealModal(); });
+
+on("deal-form", "submit", (e) => {
+  e.preventDefault();
+  const id = document.getElementById("deal-id").value;
+  const pakketVal = document.getElementById("f-pakket").value;
+  const [pakketNaam, pakketPrijs] = pakketVal.split("|");
+
+  const fields = {
+    naam: document.getElementById("f-naam").value.trim(),
+    contact: document.getElementById("f-contact").value.trim(),
+    branche: document.getElementById("f-branche-modal").value,
+    telefoon: document.getElementById("f-telefoon").value.trim(),
+    email: document.getElementById("f-email").value.trim(),
+    pakketKey: pakketVal,
+    pakket: pakketNaam,
+    branding: document.getElementById("f-branding").checked,
+    techniek: document.getElementById("f-techniek").checked,
+    seo: document.getElementById("f-seo").checked,
+    onderhoud: Number(document.getElementById("f-onderhoud").value) || 0,
+    waarde: Number(document.getElementById("f-waarde").value) || Number(pakketPrijs) || 0,
+    node: Number(document.getElementById("f-node").value) || 1,
+    notities: document.getElementById("f-notities").value.trim(),
+  };
+
+  if (id) {
+    const deal = state.deals.find(d => d.id === id);
+    if (deal) Object.assign(deal, fields);
+  } else {
+    state.deals.push(Object.assign({ id: "deal-" + Date.now() + "-" + Math.floor(Math.random()*1000) }, fields));
+  }
+  saveState();
+  closeDealModal();
+  renderSummary();
+  renderFlowchart();
+});
+
+function distinctSorted(arr) {
+  return Array.from(new Set(arr.filter(Boolean))).sort((a,b) => a.localeCompare(b, "nl"));
+}
+
+function populateInboxFilters() {
+  const brancheSel = document.getElementById("f-branche");
+  const regioSel = document.getElementById("f-regio");
+  if (!brancheSel || !regioSel) return;
+  const curBranche = brancheSel.value;
+  const curRegio = regioSel.value;
+  const branches = distinctSorted(state.inboxLeads.map(l => l.branche));
+  const regios = distinctSorted(state.inboxLeads.map(l => l.regio));
+  brancheSel.innerHTML = `<option value="">Alle</option>` + branches.map(b => `<option value="${b}">${b}</option>`).join("");
+  regioSel.innerHTML = `<option value="">Alle</option>` + regios.map(r => `<option value="${r}">${r}</option>`).join("");
+  brancheSel.value = curBranche;
+  regioSel.value = curRegio;
+}
+
+function renderInbox() {
+  populateInboxFilters();
+
+  const fBranche = document.getElementById("f-branche")?.value || "";
+  const fRegio = document.getElementById("f-regio")?.value || "";
+  const fReviews = Number(document.getElementById("f-reviews")?.value) || 0;
+  const fRating = Number(document.getElementById("f-rating")?.value) || 0;
+  const fSearch = (document.getElementById("f-search")?.value || "").trim().toLowerCase();
+  const fLimitRaw = document.getElementById("f-limit")?.value || "50";
+  const fShowNoPhone = document.getElementById("f-show-no-phone")?.checked ?? true;
+
+  const hasPhone = l => !!(l.telefoon && String(l.telefoon).trim());
+  const noPhoneCount = state.inboxLeads.filter(l => !hasPhone(l)).length;
+
+  const matches = state.inboxLeads.filter(l => {
+    if (fBranche && l.branche !== fBranche) return false;
+    if (fRegio && l.regio !== fRegio) return false;
+    if ((Number(l.reviews) || 0) < fReviews) return false;
+    if ((Number(l.rating) || 0) < fRating) return false;
+    if (!fShowNoPhone && !hasPhone(l)) return false;
+    if (fSearch) {
+      const haystack = [l.naam, l.branche, l.regio, l.adres, l.telefoon]
+        .filter(Boolean).join(" ").toLowerCase();
+      if (!haystack.includes(fSearch)) return false;
+    }
+    return true;
+  });
+
+  const limit = fLimitRaw === "all" ? matches.length : Number(fLimitRaw) || 50;
+  const filtered = matches.slice(0, limit);
+
+  const tbody = document.getElementById("inbox-body");
+  const emptyMsg = document.getElementById("inbox-empty");
+  const countEl = document.getElementById("inbox-count");
+
+  if (countEl) {
+    const parts = [];
+    if (matches.length === 0) {
+      parts.push("Geen resultaten voor de huidige filters.");
+    } else if (filtered.length < matches.length) {
+      parts.push(`Toont ${filtered.length} van ${matches.length} gevonden leads.`);
+    } else {
+      parts.push(`${matches.length} resultaten.`);
+    }
+    parts.push(`Totaal in inbox: ${state.inboxLeads.length}${!fShowNoPhone ? ` (${noPhoneCount} zonder telefoonnummer verborgen)` : ` (waarvan ${noPhoneCount} zonder telefoonnummer)`}.`);
+    countEl.textContent = parts.join(" ");
+  }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = "";
+    if (emptyMsg) emptyMsg.style.display = "block";
+  } else {
+    if (emptyMsg) emptyMsg.style.display = "none";
+    tbody.innerHTML = filtered.map(l => `
+      <tr>
+        <td><input type="checkbox" class="inbox-check" data-id="${l.id}"></td>
+        <td>${l.naam}</td>
+        <td>${l.branche || ""}</td>
+        <td>${l.regio || ""}${l.adres ? " · " + l.adres : ""}</td>
+        <td>${l.rating != null ? l.rating.toFixed ? l.rating.toFixed(1) : l.rating : ""}</td>
+        <td>${l.reviews != null ? l.reviews : ""}</td>
+        <td>${l.telefoon || ""}</td>
+      </tr>
+    `).join("");
+  }
+
+  const selectAll = document.getElementById("select-all");
+  if (selectAll) selectAll.checked = false;
+}
+
+function debounce(fn, wait) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+}
+
+on("f-branche", "change", renderInbox);
+on("f-regio", "change", renderInbox);
+on("f-reviews", "input", debounce(renderInbox, 200));
+on("f-rating", "input", debounce(renderInbox, 200));
+on("f-search", "input", debounce(renderInbox, 200));
+on("f-limit", "change", renderInbox);
+on("f-show-no-phone", "change", renderInbox);
+
+on("reset-filters-btn", "click", () => {
+  const ids = { "f-branche": "", "f-regio": "", "f-reviews": "0", "f-rating": "0", "f-search": "", "f-limit": "50" };
+  Object.entries(ids).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  });
+  const showNoPhone = document.getElementById("f-show-no-phone");
+  if (showNoPhone) showNoPhone.checked = true;
+  renderInbox();
+});
+
+on("select-all", "change", (e) => {
+  document.querySelectorAll(".inbox-check").forEach(cb => { cb.checked = e.target.checked; });
+});
+
+on("move-to-funnel-btn", "click", () => {
+  const checked = Array.from(document.querySelectorAll(".inbox-check:checked")).map(cb => cb.dataset.id);
+  if (checked.length === 0) return;
+
+  checked.forEach(leadId => {
+    const idx = state.inboxLeads.findIndex(l => l.id === leadId);
+    if (idx === -1) return;
+    const lead = state.inboxLeads[idx];
+    state.deals.push({
+      id: "deal-" + Date.now() + "-" + Math.floor(Math.random()*1000),
+      sourceLeadId: lead.id,
+      naam: lead.naam,
+      contact: "",
+      branche: lead.branche || "Anders",
+      telefoon: lead.telefoon || "",
+      email: "",
+      pakketKey: "Starter|199",
+      pakket: "Starter",
+      branding: false,
+      techniek: false,
+      seo: false,
+      onderhoud: 0,
+      waarde: 199,
+      node: 1,
+      notities: `Geïmporteerd vanuit leads inbox (${lead.regio || ""}${lead.adres ? ", " + lead.adres : ""})`
+    });
+    state.inboxLeads.splice(idx, 1);
+  });
+
+  saveState();
+  renderInbox();
+  renderSummary();
+  renderFlowchart();
+});
+
+function buildResearchPrompt(branche, regio, minReviews, minRating) {
+  return `Zoek bedrijven zonder eigen website: branche "${branche || "onbekend"}", regio "${regio || "heel Nederland"}", minimaal ${minReviews || 0} reviews en minimaal cijfer ${minRating || 0}. Voeg gekwalificeerde resultaten toe aan de leads inbox van het mopromax-revenue-platform dashboard.`;
+}
+
+function renderRequests() {
+  const panel = document.getElementById("requests-panel");
+  const list = document.getElementById("requests-list");
+  if (!panel || !list) return;
+  if (!state.requests || state.requests.length === 0) {
+    panel.style.display = "none";
+    return;
+  }
+  panel.style.display = "block";
+  list.innerHTML = state.requests.slice().reverse().map(r => `
+    <div style="border-bottom:1px solid #2a2a33; padding:8px 0; font-size:12.5px;">
+      <div><b>${r.branche || "(alle branches)"}</b> — ${r.regio || "heel Nederland"}</div>
+      <div style="color:#8a8a96;">min. ${r.minReviews || 0} reviews · min. cijfer ${r.minRating || 0} · ${r.timestamp}</div>
+    </div>
+  `).join("");
+}
+
+on("add-request-btn", "click", () => {
+  const branche = document.getElementById("req-branche").value.trim();
+  const regio = document.getElementById("req-regio").value.trim();
+  const minReviews = Number(document.getElementById("req-reviews").value) || 0;
+  const minRating = Number(document.getElementById("req-rating").value) || 0;
+
+  const request = {
+    id: "req-" + Date.now(),
+    branche, regio, minReviews, minRating,
+    timestamp: new Date().toLocaleString("nl-NL")
+  };
+  state.requests.push(request);
+  saveState();
+  renderRequests();
+
+  const status = document.getElementById("research-status");
+  if (status) {
+    status.innerHTML = `Zoekopdracht gelogd. Plak dit in de chat om direct te laten uitvoeren:<br><textarea readonly style="width:100%; margin-top:6px; font-size:12px;" rows="3">${buildResearchPrompt(branche, regio, minReviews, minRating)}</textarea>`;
+  }
+});
+
+try {
+  renderSummary();
+  renderFlowchart();
+  renderInbox();
+  renderRequests();
+} catch (e) {
+  console.error("mopromax dashboard: init render failed", e);
+}
+</script>
+</body>
+</html>
