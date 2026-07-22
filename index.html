@@ -178,6 +178,36 @@
   .footnote { margin-top: 22px; font-size: 11.5px; color: #9a9aa4; line-height: 1.7; }
   .footnote b { color: #6b6b76; }
 
+  /* ---------- Aandacht nodig / activiteitenlog ---------- */
+  .attn-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #f0e4c8; background: #fffdf6; border-radius: 8px; margin-bottom: 6px; font-size: 12.5px; flex-wrap: wrap; }
+  .attn-row.overdue { border-color: #f2d0cc; background: #fffafa; }
+  .attn-row .attn-meta { color: #8a8a96; font-size: 11.5px; }
+  .stage-age { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; background: #eef0f4; color: #5a5b66; }
+  .stage-age.stale { background: #fdf1d6; color: #92650a; }
+  .stage-age.overdue { background: #fde8e6; color: #b3261e; }
+  .act-list { margin-top: 8px; border-top: 1px dashed #e6e5eb; padding-top: 7px; }
+  .act-item { font-size: 11.5px; color: #55565f; margin-bottom: 3px; }
+  .act-item b { color: #14151a; }
+  .act-add { display: flex; gap: 5px; margin-top: 7px; }
+  .act-add select { width: 96px; padding: 5px 6px; border: 1px solid #d9d8e0; border-radius: 6px; font-size: 11.5px; }
+  .act-add input { flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid #d9d8e0; border-radius: 6px; font-size: 11.5px; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: #14151a; }
+
+  /* ---------- Responsief (mobiel) ---------- */
+  .table-scroll { overflow-x: auto; }
+  @media (max-width: 760px) {
+    .wrap { padding: 14px 12px 44px; }
+    .header { flex-direction: column; align-items: stretch; }
+    .nav-tabs { width: 100%; display: flex; }
+    .nav-tabs button { flex: 1; padding: 8px 4px; }
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .row-2 { grid-template-columns: 1fr; }
+    .side-panel { width: 100vw; right: -100vw; }
+    .filters .filter-group { min-width: 46%; flex: 1; }
+    .summary { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  }
+
   /* ---------- Auth gate ---------- */
   #auth-gate {
     position: fixed; inset: 0; z-index: 9999;
@@ -213,7 +243,7 @@
     <p class="sub">Alleen voor geautoriseerde toegang.</p>
     <div id="step-password">
       <label>E-mail</label>
-      <input type="email" id="auth-email" autocomplete="username" value="benmomoben321@gmail.com">
+      <input type="email" id="auth-email" autocomplete="username">
       <label>Wachtwoord</label>
       <input type="password" id="auth-password" autocomplete="current-password">
       <button id="auth-login-btn" type="button">Inloggen</button>
@@ -242,6 +272,7 @@
     </div>
     <div class="nav-tabs">
       <button class="tab-btn active" data-tab="funnel">Sales funnel</button>
+      <button class="tab-btn" data-tab="deals">Deals</button>
       <button class="tab-btn" data-tab="inbox">Leads inbox</button>
     </div>
   </div>
@@ -250,13 +281,21 @@
 
   <!-- ===================== FUNNEL SECTION ===================== -->
   <div class="section active" id="section-funnel">
+    <div class="panel" id="attention-panel" style="display:none;">
+      <div class="panel-title">Aandacht nodig</div>
+      <div class="panel-desc">Achterstallige opvolgingen en deals die te lang in dezelfde fase stilstaan.</div>
+      <div id="attention-list"></div>
+    </div>
     <div class="panel">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
         <div>
           <div class="panel-title">Sales &amp; delivery funnel</div>
           <div class="panel-desc">Geen rechte lijn &mdash; leads kunnen vastlopen, terugveren of een omweg maken, precies zoals in de praktijk. Klik op een knoop om de leads daar te bekijken en te verplaatsen.</div>
         </div>
-        <button class="btn" id="new-deal-btn">+ Nieuwe deal in funnel</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn secondary" id="export-deals-btn">Exporteer CSV</button>
+          <button class="btn" id="new-deal-btn">+ Nieuwe deal in funnel</button>
+        </div>
       </div>
       <div class="legend">
         <span><span class="dot" style="background:#64748b"></span>Acquisitie</span>
@@ -278,6 +317,52 @@
       <b>Hoe werkt dit?</b> Elke knoop staat voor een fase in het traject. De pijlen zijn de realistische vervolgstappen vanuit die fase &mdash;
       inclusief loops (bv. "Wijzigingen gevraagd" &rarr; terug naar "in uitvoering"), terugval (bv. "Afgehaakt" &rarr; "Win-back"), en dead-ends (rode knopen).
       In het detailpaneel van een knoop kun je een lead naar elke toegestane vervolgstap verplaatsen, of in uitzonderingsgevallen handmatig naar een andere fase overschrijven.
+    </div>
+  </div>
+
+  <!-- ===================== DEALS SECTION ===================== -->
+  <div class="section" id="section-deals">
+    <div class="panel">
+      <div class="panel-title">Alle deals</div>
+      <div class="panel-desc">Doorzoek en sorteer alle deals in &eacute;&eacute;n lijst. Klik op een kolomkop om te sorteren, op "Open" om de deal in zijn funnel-fase te bekijken.</div>
+      <div class="filters">
+        <div class="filter-group" style="min-width:220px;">
+          <label>Zoeken</label>
+          <input type="text" id="d-search" placeholder="Naam, contact, telefoon, notities...">
+        </div>
+        <div class="filter-group">
+          <label>Fase</label>
+          <select id="d-node"><option value="">Alle</option></select>
+        </div>
+        <div class="filter-group">
+          <label>Status</label>
+          <select id="d-status">
+            <option value="">Alle</option>
+            <option value="active">Actief</option>
+            <option value="won">Gewonnen / lopend</option>
+            <option value="lost">Verloren</option>
+          </select>
+        </div>
+      </div>
+      <div id="deals-count" class="panel-desc" style="margin-top:-4px;"></div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="sortable" data-sort="naam">Bedrijf</th>
+              <th class="sortable" data-sort="branche">Branche</th>
+              <th class="sortable" data-sort="node">Fase</th>
+              <th class="sortable" data-sort="waarde">Waarde</th>
+              <th class="sortable" data-sort="onderhoud">Onderhoud</th>
+              <th class="sortable" data-sort="age">In fase</th>
+              <th class="sortable" data-sort="followUpAt">Opvolgen op</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="deals-body"></tbody>
+        </table>
+      </div>
+      <div id="deals-empty" class="empty-msg" style="display:none;">Geen deals gevonden.</div>
     </div>
   </div>
 
@@ -321,7 +406,10 @@
     </div>
 
     <div class="panel" id="requests-panel" style="display:none;">
-      <div class="panel-title">Onderzoeksgeschiedenis</div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+        <div class="panel-title">Onderzoeksgeschiedenis</div>
+        <button class="btn secondary small" id="clear-requests-btn">Geschiedenis wissen</button>
+      </div>
       <div class="panel-desc">Log van eerder gestarte zoekopdrachten.</div>
       <div id="requests-list"></div>
     </div>
@@ -368,27 +456,32 @@
           <label style="text-transform:none; font-size:12px; font-weight:600; color:#3a3a44;">Toon leads zonder telefoonnummer</label>
         </div>
         <div class="filter-group" style="justify-content:flex-end;">
-          <button class="btn" id="reset-filters-btn">Filters wissen</button>
+          <button class="btn secondary" id="reset-filters-btn">Filters wissen</button>
+        </div>
+        <div class="filter-group" style="justify-content:flex-end;">
+          <button class="btn secondary" id="export-leads-btn">Exporteer CSV</button>
         </div>
         <div class="filter-group" style="justify-content:flex-end;">
           <button class="btn" id="move-to-funnel-btn">Verplaats geselecteerde naar funnel</button>
         </div>
       </div>
       <div id="inbox-count" class="panel-desc" style="margin-top:-4px;"></div>
-      <table>
-        <thead>
-          <tr>
-            <th style="width:28px;"><input type="checkbox" id="select-all"></th>
-            <th>Bedrijf</th>
-            <th>Branche</th>
-            <th>Regio / adres</th>
-            <th>Cijfer</th>
-            <th>Reviews</th>
-            <th>Telefoon</th>
-          </tr>
-        </thead>
-        <tbody id="inbox-body"></tbody>
-      </table>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:28px;"><input type="checkbox" id="select-all"></th>
+              <th>Bedrijf</th>
+              <th>Branche</th>
+              <th>Regio / adres</th>
+              <th>Cijfer</th>
+              <th>Reviews</th>
+              <th>Telefoon</th>
+            </tr>
+          </thead>
+          <tbody id="inbox-body"></tbody>
+        </table>
+      </div>
       <div id="inbox-empty" class="empty-msg" style="display:none;">Geen leads in de inbox. Vraag hierboven een nieuwe zoekopdracht aan.</div>
     </div>
   </div>
@@ -463,8 +556,10 @@
           <select id="f-node"></select>
         </div>
       </div>
+      <div class="field"><label>Opvolgen op (reminder)</label><input type="date" id="f-followup"></div>
       <div class="field"><label>Notities</label><textarea id="f-notities"></textarea></div>
       <div class="modal-actions">
+        <button type="button" class="btn danger" id="delete-deal-btn" style="margin-right:auto; display:none;">Verwijderen</button>
         <button type="button" class="btn secondary" id="cancel-btn">Annuleren</button>
         <button type="submit" class="btn">Opslaan</button>
       </div>
@@ -932,8 +1027,7 @@ async function fbInit() {
       "Firebase: gesynchroniseerd " + new Date().toLocaleTimeString("nl-NL") +
       " (" + state.inboxLeads.length + " leads)", true
     );
-    renderSummary();
-    renderFlowchart();
+    renderAll();
     renderInbox();
     renderRequests();
   } catch (e) {
@@ -949,6 +1043,86 @@ async function fbInit() {
 function fmtEuro(n) { return "€" + Number(n || 0).toLocaleString("nl-NL"); }
 function outgoing(nodeId) { return EDGES.filter(e => e[0] === nodeId).map(e => e[1]); }
 function nodeType(n) { return n.type || "normal"; }
+
+// HTML-escaping: alle data die via innerHTML in de pagina komt (leadnamen,
+// adressen, notities) gaat hier doorheen zodat rare tekens of ingebedde
+// HTML/scripts in brondata de pagina niet kunnen breken (XSS).
+function esc(v) {
+  return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function fmtDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d) ? "—" : d.toLocaleDateString("nl-NL");
+}
+function daysSince(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d)) return null;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+}
+function fmtRating(r) {
+  const n = Number(r);
+  return Number.isFinite(n) ? n.toFixed(1) : esc(r == null ? "" : r);
+}
+
+const STALE_DAYS = 14;           // actieve fases: na 14 dagen stilstand "aandacht nodig"
+const STALE_DAYS_NURTURE = 30;   // nurture-fases mogen langer stil staan
+
+function dealStageAge(d) { return daysSince(d.nodeChangedAt || d.createdAt); }
+function dealIsStale(d) {
+  const n = nodeById[d.node];
+  if (!n) return false;
+  const t = nodeType(n);
+  if (t === "terminal-lost" || t === "terminal-won" || t === "ongoing") return false;
+  const age = dealStageAge(d);
+  if (age == null) return false;
+  return age >= (t === "nurture" ? STALE_DAYS_NURTURE : STALE_DAYS);
+}
+function dealFollowUpOverdue(d) {
+  if (!d.followUpAt) return false;
+  const t = new Date(d.followUpAt + "T23:59:59");
+  return !isNaN(t) && t.getTime() < Date.now();
+}
+function dealStatus(d) {
+  const n = nodeById[d.node];
+  const t = n ? nodeType(n) : "normal";
+  if (t === "terminal-lost") return "lost";
+  if (t === "terminal-won" || t === "ongoing") return "won";
+  return "active";
+}
+
+// Centrale verplaatsing: registreert fasewissel + historie op de deal.
+function moveDeal(deal, target) {
+  if (!deal || !target || deal.node === target) return false;
+  const now = new Date().toISOString();
+  if (!Array.isArray(deal.history)) deal.history = [];
+  deal.history.push({ at: now, van: deal.node, naar: target });
+  deal.node = target;
+  deal.nodeChangedAt = now;
+  return true;
+}
+
+// Verwijdert een deal uit state én uit Firestore (de sync schrijft alleen,
+// dus zonder expliciete delete zou het document in Firestore blijven staan).
+function deleteDeal(dealId) {
+  const idx = state.deals.findIndex(d => d.id === dealId);
+  if (idx === -1) return false;
+  const deal = state.deals[idx];
+  if (!confirm(`Deal "${deal.naam}" definitief verwijderen?`)) return false;
+  state.deals.splice(idx, 1);
+  fbDeleteDoc("deals/" + encodeURIComponent(dealId)).catch(e => console.warn("Firestore delete mislukt", e));
+  saveState();
+  renderAll();
+  return true;
+}
+
+function renderAll() {
+  renderSummary();
+  renderFlowchart();
+  renderAttention();
+  renderDealsTable();
+}
 
 // Defensive event binding: never let a missing element halt the whole script.
 function on(id, event, handler) {
@@ -989,6 +1163,7 @@ function renderSummary() {
   const mrr = deals.filter(d => d.node === 32).reduce((s,d) => s + (Number(d.onderhoud)||0), 0);
   const closedTotal = wonOrOngoing.length + lost.length;
   const winRate = closedTotal > 0 ? Math.round((wonOrOngoing.length / closedTotal) * 100) : 0;
+  const attention = deals.filter(d => dealStatus(d) === "active" && (dealIsStale(d) || dealFollowUpOverdue(d))).length;
 
   const cards = [
     { label: "Leads in inbox", value: state.inboxLeads.length, sub: "wachtend op kwalificatie", accent:false },
@@ -996,7 +1171,8 @@ function renderSummary() {
     { label: "Pipeline waarde", value: fmtEuro(pipelineValue), sub: "actieve eenmalige waarde", accent:true },
     { label: "Gewogen forecast", value: fmtEuro(weighted), sub: "waarde × winkans per fase", accent:true },
     { label: "MRR onderhoud", value: fmtEuro(mrr) + "/mnd", sub: `${deals.filter(d=>d.node===32).length} actieve contracten`, accent:true },
-    { label: "Win rate", value: winRate + "%", sub: `${wonOrOngoing.length} gewonnen / ${lost.length} verloren`, accent:false }
+    { label: "Win rate", value: winRate + "%", sub: `${wonOrOngoing.length} gewonnen / ${lost.length} verloren`, accent:false },
+    { label: "Aandacht nodig", value: attention, sub: "stilstaand of opvolging verlopen", accent:false }
   ];
   document.getElementById("summary").innerHTML = cards.map(c => `
     <div class="card ${c.accent ? "accent" : ""}">
@@ -1117,32 +1293,72 @@ function openNodePanel(nodeId) {
   if (dealsHere.length === 0) {
     body.innerHTML = `<div class="empty-msg">Nog geen deals in deze fase.</div>`;
   } else {
-    body.innerHTML = dealsHere.map(d => `
-      <div class="deal-card" style="border:1px solid #2a2a33; border-radius:8px; padding:10px; margin-bottom:10px;">
+    body.innerHTML = dealsHere.map(d => {
+      const age = dealStageAge(d);
+      const stale = dealIsStale(d);
+      const overdue = dealFollowUpOverdue(d);
+      const acts = (Array.isArray(d.activiteiten) ? d.activiteiten : []).slice(-3).reverse();
+      return `
+      <div class="deal-card">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
           <div>
-            <div style="font-weight:600;">${d.naam}</div>
-            <div style="font-size:12px; color:#8a8a96;">${d.branche || ""} ${d.contact ? "· " + d.contact : ""}</div>
+            <div class="name">${esc(d.naam)}</div>
+            <div class="meta">${esc(d.branche || "")}${d.contact ? " · " + esc(d.contact) : ""}</div>
           </div>
-          <button class="btn secondary edit-deal-btn" data-id="${d.id}" style="padding:4px 10px; font-size:12px;">Bewerken</button>
+          <div style="display:flex; gap:5px;">
+            <button class="btn secondary small edit-deal-btn" data-id="${esc(d.id)}">Bewerken</button>
+            <button class="btn danger small delete-deal-card-btn" data-id="${esc(d.id)}" title="Deal verwijderen">&times;</button>
+          </div>
         </div>
-        <div style="font-size:12px; color:#8a8a96; margin-top:6px;">
-          ${d.telefoon ? "Tel: " + d.telefoon + " · " : ""}${d.waarde ? fmtEuro(d.waarde) : ""}
+        <div class="meta" style="margin-top:6px;">
+          ${d.telefoon ? "Tel: " + esc(d.telefoon) + " · " : ""}${d.waarde ? fmtEuro(d.waarde) + " " : ""}
+          ${age != null ? `<span class="stage-age ${stale ? "stale" : ""}">${age} d. in fase</span>` : ""}
+          ${d.followUpAt ? ` <span class="stage-age ${overdue ? "overdue" : ""}">opvolgen ${fmtDate(d.followUpAt)}</span>` : ""}
+        </div>
+        ${acts.length ? `<div class="act-list">${acts.map(a => `<div class="act-item"><b>${esc(a.type)}</b> ${fmtDate(a.at)}${a.text ? " — " + esc(a.text) : ""}</div>`).join("")}</div>` : ""}
+        <div class="act-add">
+          <select class="act-type" data-id="${esc(d.id)}">
+            <option>Gebeld</option><option>Gemaild</option><option>Afspraak</option><option>Notitie</option>
+          </select>
+          <input type="text" class="act-text" data-id="${esc(d.id)}" placeholder="Korte notitie...">
+          <button class="btn small act-save-btn" data-id="${esc(d.id)}">Log</button>
         </div>
         <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-          <select class="move-target" data-id="${d.id}" style="flex:1; min-width:160px;">
+          <select class="move-target" data-id="${esc(d.id)}" style="flex:1; min-width:160px;">
             <option value="">Verplaats naar…</option>
             ${nextIds.map(id => `<option value="${id}">${nodeById[id].label}</option>`).join("")}
             <option value="" disabled>──────────</option>
             ${NODES.map(nn => `<option value="${nn.id}">(handmatig) ${nn.label}</option>`).join("")}
           </select>
-          <button class="btn move-deal-btn" data-id="${d.id}" style="padding:6px 10px; font-size:12px;">Verplaats</button>
+          <button class="btn move-deal-btn" data-id="${esc(d.id)}" style="padding:6px 10px; font-size:12px;">Verplaats</button>
         </div>
-      </div>
-    `).join("");
+      </div>`;
+    }).join("");
 
     body.querySelectorAll(".edit-deal-btn").forEach(btn => {
       btn.addEventListener("click", () => openDealModal(btn.dataset.id));
+    });
+    body.querySelectorAll(".delete-deal-card-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (deleteDeal(btn.dataset.id)) openNodePanel(nodeId);
+      });
+    });
+    body.querySelectorAll(".act-save-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const deal = state.deals.find(d => d.id === btn.dataset.id);
+        if (!deal) return;
+        const typeSel = body.querySelector(`.act-type[data-id="${btn.dataset.id}"]`);
+        const textIn = body.querySelector(`.act-text[data-id="${btn.dataset.id}"]`);
+        if (!Array.isArray(deal.activiteiten)) deal.activiteiten = [];
+        deal.activiteiten.push({ at: new Date().toISOString(), type: typeSel ? typeSel.value : "Notitie", text: (textIn && textIn.value || "").trim() });
+        saveState();
+        openNodePanel(nodeId);
+      });
+    });
+    body.querySelectorAll(".act-text").forEach(inp => {
+      inp.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") body.querySelector(`.act-save-btn[data-id="${inp.dataset.id}"]`)?.click();
+      });
     });
     body.querySelectorAll(".move-deal-btn").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -1150,11 +1366,9 @@ function openNodePanel(nodeId) {
         const target = Number(select.value);
         if (!target) return;
         const deal = state.deals.find(d => d.id === btn.dataset.id);
-        if (deal) {
-          deal.node = target;
+        if (deal && moveDeal(deal, target)) {
           saveState();
-          renderSummary();
-          renderFlowchart();
+          renderAll();
           openNodePanel(nodeId);
         }
       });
@@ -1179,6 +1393,8 @@ function openDealModal(dealId, prefill) {
   form.reset();
   document.getElementById("deal-id").value = "";
   document.getElementById("modal-title").textContent = "Nieuwe deal";
+  const delBtn = document.getElementById("delete-deal-btn");
+  if (delBtn) delBtn.style.display = dealId ? "" : "none";
 
   if (dealId) {
     const deal = state.deals.find(d => d.id === dealId);
@@ -1197,6 +1413,7 @@ function openDealModal(dealId, prefill) {
       document.getElementById("f-onderhoud").value = String(deal.onderhoud || 0);
       document.getElementById("f-waarde").value = deal.waarde || 0;
       document.getElementById("f-node").value = String(deal.node || 1);
+      document.getElementById("f-followup").value = deal.followUpAt || "";
       document.getElementById("f-notities").value = deal.notities || "";
     }
   } else if (prefill) {
@@ -1220,6 +1437,14 @@ function closeDealModal() {
 on("new-deal-btn", "click", () => openDealModal(null));
 on("cancel-btn", "click", closeDealModal);
 on("modal-backdrop", "click", (e) => { if (e.target.id === "modal-backdrop") closeDealModal(); });
+on("delete-deal-btn", "click", () => {
+  const id = document.getElementById("deal-id").value;
+  if (!id) return;
+  if (deleteDeal(id)) {
+    closeDealModal();
+    closeSidePanel();
+  }
+});
 
 on("deal-form", "submit", (e) => {
   e.preventDefault();
@@ -1241,19 +1466,32 @@ on("deal-form", "submit", (e) => {
     onderhoud: Number(document.getElementById("f-onderhoud").value) || 0,
     waarde: Number(document.getElementById("f-waarde").value) || Number(pakketPrijs) || 0,
     node: Number(document.getElementById("f-node").value) || 1,
+    followUpAt: document.getElementById("f-followup").value || null,
     notities: document.getElementById("f-notities").value.trim(),
   };
 
+  const now = new Date().toISOString();
   if (id) {
     const deal = state.deals.find(d => d.id === id);
-    if (deal) Object.assign(deal, fields);
+    if (deal) {
+      const newNode = fields.node;
+      const oldNode = deal.node;
+      Object.assign(deal, fields);
+      if (newNode !== oldNode) {
+        deal.node = oldNode; // herstel zodat moveDeal de wissel in de historie registreert
+        moveDeal(deal, newNode);
+      }
+      deal.updatedAt = now;
+    }
   } else {
-    state.deals.push(Object.assign({ id: "deal-" + Date.now() + "-" + Math.floor(Math.random()*1000) }, fields));
+    state.deals.push(Object.assign({
+      id: "deal-" + Date.now() + "-" + Math.floor(Math.random()*1000),
+      createdAt: now, nodeChangedAt: now, history: [], activiteiten: []
+    }, fields));
   }
   saveState();
   closeDealModal();
-  renderSummary();
-  renderFlowchart();
+  renderAll();
 });
 
 function distinctSorted(arr) {
@@ -1268,32 +1506,30 @@ function populateInboxFilters() {
   const curRegio = regioSel.value;
   const branches = distinctSorted(state.inboxLeads.map(l => l.branche));
   const regios = distinctSorted(state.inboxLeads.map(l => l.regio));
-  brancheSel.innerHTML = `<option value="">Alle</option>` + branches.map(b => `<option value="${b}">${b}</option>`).join("");
-  regioSel.innerHTML = `<option value="">Alle</option>` + regios.map(r => `<option value="${r}">${r}</option>`).join("");
+  brancheSel.innerHTML = `<option value="">Alle</option>` + branches.map(b => `<option value="${esc(b)}">${esc(b)}</option>`).join("");
+  regioSel.innerHTML = `<option value="">Alle</option>` + regios.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("");
   brancheSel.value = curBranche;
   regioSel.value = curRegio;
 }
 
-function renderInbox() {
-  populateInboxFilters();
+function leadHasPhone(l) { return !!(l.telefoon && String(l.telefoon).trim()); }
 
+// Geeft alle leads die aan de huidige filters voldoen (zonder max-limiet),
+// gedeeld door de tabel-render en de CSV-export.
+function currentInboxMatches() {
   const fBranche = document.getElementById("f-branche")?.value || "";
   const fRegio = document.getElementById("f-regio")?.value || "";
   const fReviews = Number(document.getElementById("f-reviews")?.value) || 0;
   const fRating = Number(document.getElementById("f-rating")?.value) || 0;
   const fSearch = (document.getElementById("f-search")?.value || "").trim().toLowerCase();
-  const fLimitRaw = document.getElementById("f-limit")?.value || "50";
   const fShowNoPhone = document.getElementById("f-show-no-phone")?.checked ?? true;
 
-  const hasPhone = l => !!(l.telefoon && String(l.telefoon).trim());
-  const noPhoneCount = state.inboxLeads.filter(l => !hasPhone(l)).length;
-
-  const matches = state.inboxLeads.filter(l => {
+  return state.inboxLeads.filter(l => {
     if (fBranche && l.branche !== fBranche) return false;
     if (fRegio && l.regio !== fRegio) return false;
     if ((Number(l.reviews) || 0) < fReviews) return false;
     if ((Number(l.rating) || 0) < fRating) return false;
-    if (!fShowNoPhone && !hasPhone(l)) return false;
+    if (!fShowNoPhone && !leadHasPhone(l)) return false;
     if (fSearch) {
       const haystack = [l.naam, l.branche, l.regio, l.adres, l.telefoon]
         .filter(Boolean).join(" ").toLowerCase();
@@ -1301,6 +1537,15 @@ function renderInbox() {
     }
     return true;
   });
+}
+
+function renderInbox() {
+  populateInboxFilters();
+
+  const fLimitRaw = document.getElementById("f-limit")?.value || "50";
+  const fShowNoPhone = document.getElementById("f-show-no-phone")?.checked ?? true;
+  const noPhoneCount = state.inboxLeads.filter(l => !leadHasPhone(l)).length;
+  const matches = currentInboxMatches();
 
   const limit = fLimitRaw === "all" ? matches.length : Number(fLimitRaw) || 50;
   const filtered = matches.slice(0, limit);
@@ -1329,13 +1574,13 @@ function renderInbox() {
     if (emptyMsg) emptyMsg.style.display = "none";
     tbody.innerHTML = filtered.map(l => `
       <tr>
-        <td><input type="checkbox" class="inbox-check" data-id="${l.id}"></td>
-        <td>${l.naam}</td>
-        <td>${l.branche || ""}</td>
-        <td>${l.regio || ""}${l.adres ? " · " + l.adres : ""}</td>
-        <td>${l.rating != null ? l.rating.toFixed ? l.rating.toFixed(1) : l.rating : ""}</td>
-        <td>${l.reviews != null ? l.reviews : ""}</td>
-        <td>${l.telefoon || ""}</td>
+        <td><input type="checkbox" class="inbox-check" data-id="${esc(l.id)}"></td>
+        <td>${esc(l.naam)}</td>
+        <td>${esc(l.branche || "")}</td>
+        <td>${esc(l.regio || "")}${l.adres ? " · " + esc(l.adres) : ""}</td>
+        <td>${l.rating != null ? fmtRating(l.rating) : ""}</td>
+        <td>${l.reviews != null ? esc(l.reviews) : ""}</td>
+        <td>${esc(l.telefoon || "")}</td>
       </tr>
     `).join("");
   }
@@ -1376,6 +1621,7 @@ on("move-to-funnel-btn", "click", () => {
   const checked = Array.from(document.querySelectorAll(".inbox-check:checked")).map(cb => cb.dataset.id);
   if (checked.length === 0) return;
 
+  const now = new Date().toISOString();
   checked.forEach(leadId => {
     const idx = state.inboxLeads.findIndex(l => l.id === leadId);
     if (idx === -1) return;
@@ -1396,6 +1642,11 @@ on("move-to-funnel-btn", "click", () => {
       onderhoud: 0,
       waarde: 199,
       node: 1,
+      createdAt: now,
+      nodeChangedAt: now,
+      history: [],
+      activiteiten: [],
+      followUpAt: null,
       notities: `Geïmporteerd vanuit leads inbox (${lead.regio || ""}${lead.adres ? ", " + lead.adres : ""})`
     });
     state.inboxLeads.splice(idx, 1);
@@ -1403,8 +1654,7 @@ on("move-to-funnel-btn", "click", () => {
 
   saveState();
   renderInbox();
-  renderSummary();
-  renderFlowchart();
+  renderAll();
 });
 
 function buildResearchPrompt(branche, regio, minReviews, minRating) {
@@ -1421,12 +1671,22 @@ function renderRequests() {
   }
   panel.style.display = "block";
   list.innerHTML = state.requests.slice().reverse().map(r => `
-    <div style="border-bottom:1px solid #2a2a33; padding:8px 0; font-size:12.5px;">
-      <div><b>${r.branche || "(alle branches)"}</b> — ${r.regio || "heel Nederland"}</div>
-      <div style="color:#8a8a96;">min. ${r.minReviews || 0} reviews · min. cijfer ${r.minRating || 0} · ${r.timestamp}</div>
+    <div style="border-bottom:1px solid #efeef4; padding:8px 0; font-size:12.5px;">
+      <div><b>${esc(r.branche || "(alle branches)")}</b> — ${esc(r.regio || "heel Nederland")}</div>
+      <div style="color:#8a8a96;">min. ${esc(r.minReviews || 0)} reviews · min. cijfer ${esc(r.minRating || 0)} · ${esc(r.timestamp)}</div>
     </div>
   `).join("");
 }
+
+on("clear-requests-btn", "click", () => {
+  if (!state.requests.length) return;
+  if (!confirm("Volledige onderzoeksgeschiedenis wissen?")) return;
+  const ids = state.requests.map(r => r.id);
+  state.requests = [];
+  ids.forEach(id => fbDeleteDoc("requests/" + encodeURIComponent(id)).catch(e => console.warn("Firestore delete request mislukt", e)));
+  saveState();
+  renderRequests();
+});
 
 on("add-request-btn", "click", () => {
   const branche = document.getElementById("req-branche").value.trim();
@@ -1445,13 +1705,189 @@ on("add-request-btn", "click", () => {
 
   const status = document.getElementById("research-status");
   if (status) {
-    status.innerHTML = `Zoekopdracht gelogd. Plak dit in de chat om direct te laten uitvoeren:<br><textarea readonly style="width:100%; margin-top:6px; font-size:12px;" rows="3">${buildResearchPrompt(branche, regio, minReviews, minRating)}</textarea>`;
+    status.innerHTML = `Zoekopdracht gelogd. Plak dit in de chat om direct te laten uitvoeren:<br><textarea readonly style="width:100%; margin-top:6px; font-size:12px;" rows="3">${esc(buildResearchPrompt(branche, regio, minReviews, minRating))}</textarea>`;
   }
 });
 
+/* =========================================================================
+   AANDACHT NODIG — achterstallige opvolgingen + stilstaande deals
+   ========================================================================= */
+function renderAttention() {
+  const panel = document.getElementById("attention-panel");
+  const list = document.getElementById("attention-list");
+  if (!panel || !list) return;
+
+  const items = [];
+  state.deals.forEach(d => {
+    if (dealStatus(d) !== "active") return;
+    const overdue = dealFollowUpOverdue(d);
+    const stale = dealIsStale(d);
+    if (!overdue && !stale) return;
+    items.push({ d, n: nodeById[d.node], overdue, stale });
+  });
+
+  if (!items.length) { panel.style.display = "none"; return; }
+  items.sort((a, b) => (Number(b.overdue) - Number(a.overdue)) || ((dealStageAge(b.d) || 0) - (dealStageAge(a.d) || 0)));
+  panel.style.display = "block";
+  list.innerHTML = items.map(({ d, n, overdue, stale }) => `
+    <div class="attn-row ${overdue ? "overdue" : ""}">
+      <div>
+        <b>${esc(d.naam)}</b> <span class="attn-meta">· ${n ? esc(n.label) : "?"}</span>
+        <div class="attn-meta">
+          ${overdue ? `Opvolging verlopen (${fmtDate(d.followUpAt)})` : ""}${overdue && stale ? " · " : ""}${stale ? `${dealStageAge(d)} dagen in deze fase` : ""}
+        </div>
+      </div>
+      <button class="btn secondary small attn-open-btn" data-node="${d.node}">Open</button>
+    </div>
+  `).join("");
+  list.querySelectorAll(".attn-open-btn").forEach(btn =>
+    btn.addEventListener("click", () => openNodePanel(Number(btn.dataset.node))));
+}
+
+/* =========================================================================
+   DEALS-TAB — doorzoekbare, sorteerbare lijst van alle deals
+   ========================================================================= */
+let dealSort = { key: "age", dir: -1 };
+
+function populateDealNodeFilter() {
+  const sel = document.getElementById("d-node");
+  if (!sel) return;
+  sel.innerHTML = `<option value="">Alle</option>` + NODES.map(n => `<option value="${n.id}">${esc(n.label)}</option>`).join("");
+}
+
+function renderDealsTable() {
+  const tbody = document.getElementById("deals-body");
+  if (!tbody) return;
+  const q = (document.getElementById("d-search")?.value || "").trim().toLowerCase();
+  const fNode = document.getElementById("d-node")?.value || "";
+  const fStatus = document.getElementById("d-status")?.value || "";
+
+  const rows = state.deals.filter(d => {
+    if (fNode && String(d.node) !== fNode) return false;
+    if (fStatus && dealStatus(d) !== fStatus) return false;
+    if (q) {
+      const hay = [d.naam, d.contact, d.branche, d.telefoon, d.email, d.notities]
+        .filter(Boolean).join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const key = dealSort.key, dir = dealSort.dir;
+  const val = d => {
+    switch (key) {
+      case "naam": return (d.naam || "").toLowerCase();
+      case "branche": return (d.branche || "").toLowerCase();
+      case "node": return nodeById[d.node] ? nodeById[d.node].label.toLowerCase() : "";
+      case "waarde": return Number(d.waarde) || 0;
+      case "onderhoud": return Number(d.onderhoud) || 0;
+      case "age": { const a = dealStageAge(d); return a == null ? -1 : a; }
+      case "followUpAt": return d.followUpAt || "9999-12-31";
+      default: return 0;
+    }
+  };
+  rows.sort((a, b) => { const va = val(a), vb = val(b); return (va < vb ? -1 : va > vb ? 1 : 0) * dir; });
+
+  const countEl = document.getElementById("deals-count");
+  if (countEl) countEl.textContent = `${rows.length} van ${state.deals.length} deals.`;
+
+  const empty = document.getElementById("deals-empty");
+  if (!rows.length) {
+    tbody.innerHTML = "";
+    if (empty) empty.style.display = "block";
+    return;
+  }
+  if (empty) empty.style.display = "none";
+
+  tbody.innerHTML = rows.map(d => {
+    const n = nodeById[d.node];
+    const age = dealStageAge(d);
+    const stale = dealIsStale(d);
+    const overdue = dealFollowUpOverdue(d);
+    return `
+    <tr>
+      <td><b>${esc(d.naam)}</b>${d.contact ? `<div style="color:#8a8a96; font-size:11px;">${esc(d.contact)}</div>` : ""}</td>
+      <td>${esc(d.branche || "")}</td>
+      <td>${n ? esc(n.label) : "?"}</td>
+      <td>${fmtEuro(d.waarde)}</td>
+      <td>${Number(d.onderhoud) ? fmtEuro(d.onderhoud) + "/mnd" : "—"}</td>
+      <td>${age != null ? `<span class="stage-age ${stale ? "stale" : ""}">${age} d.</span>` : "—"}</td>
+      <td>${d.followUpAt ? `<span class="stage-age ${overdue ? "overdue" : ""}">${fmtDate(d.followUpAt)}</span>` : "—"}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn secondary small deal-open-btn" data-node="${d.node}">Open</button>
+        <button class="btn secondary small deal-edit-btn" data-id="${esc(d.id)}">Bewerken</button>
+      </td>
+    </tr>`;
+  }).join("");
+
+  tbody.querySelectorAll(".deal-open-btn").forEach(btn =>
+    btn.addEventListener("click", () => openNodePanel(Number(btn.dataset.node))));
+  tbody.querySelectorAll(".deal-edit-btn").forEach(btn =>
+    btn.addEventListener("click", () => openDealModal(btn.dataset.id)));
+}
+
+on("d-search", "input", debounce(renderDealsTable, 200));
+on("d-node", "change", renderDealsTable);
+on("d-status", "change", renderDealsTable);
+document.querySelectorAll("#section-deals th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.sort;
+    if (dealSort.key === key) {
+      dealSort.dir *= -1;
+    } else {
+      dealSort = { key, dir: ["naam", "branche", "node"].includes(key) ? 1 : -1 };
+    }
+    renderDealsTable();
+  });
+});
+
+/* =========================================================================
+   CSV-EXPORT — deals (funnel-tab) en gefilterde leads (inbox-tab)
+   ========================================================================= */
+function downloadCsv(filename, header, rows) {
+  const cell = v => {
+    const s = String(v == null ? "" : v);
+    return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  // BOM + puntkomma-scheiding zodat Nederlandse Excel het bestand direct goed opent
+  const csv = String.fromCharCode(0xFEFF) + [header, ...rows].map(r => r.map(cell).join(";")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
+on("export-deals-btn", "click", () => {
+  if (!state.deals.length) { alert("Geen deals om te exporteren."); return; }
+  const rows = state.deals.map(d => {
+    const n = nodeById[d.node];
+    return [d.naam, d.contact || "", d.branche || "", d.telefoon || "", d.email || "", d.pakket || "",
+      Number(d.waarde) || 0, Number(d.onderhoud) || 0, n ? n.label : d.node,
+      d.createdAt ? fmtDate(d.createdAt) : "", d.nodeChangedAt ? fmtDate(d.nodeChangedAt) : "",
+      d.followUpAt ? fmtDate(d.followUpAt) : "", d.notities || ""];
+  });
+  downloadCsv("mpm-deals-" + new Date().toISOString().slice(0, 10) + ".csv",
+    ["Bedrijf", "Contact", "Branche", "Telefoon", "E-mail", "Pakket", "Waarde", "Onderhoud p/mnd", "Fase", "Aangemaakt", "Laatste fasewissel", "Opvolgen op", "Notities"],
+    rows);
+});
+
+on("export-leads-btn", "click", () => {
+  const matches = currentInboxMatches();
+  if (!matches.length) { alert("Geen leads binnen de huidige filters."); return; }
+  const rows = matches.map(l => [l.naam, l.branche || "", l.regio || "", l.adres || "",
+    l.rating != null ? l.rating : "", l.reviews != null ? l.reviews : "", l.telefoon || ""]);
+  downloadCsv("mpm-leads-" + new Date().toISOString().slice(0, 10) + ".csv",
+    ["Bedrijf", "Branche", "Regio", "Adres", "Cijfer", "Reviews", "Telefoon"],
+    rows);
+});
+
 try {
-  renderSummary();
-  renderFlowchart();
+  populateDealNodeFilter();
+  renderAll();
   renderInbox();
   renderRequests();
 } catch (e) {
