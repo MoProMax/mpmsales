@@ -226,6 +226,27 @@
   .sc-foot .status { margin-right: auto; font-size: 11.5px; color: #8a8a96; }
   @media (max-width: 760px) { .sc-svc-grid { grid-template-columns: 1fr; } .sc-row2 { grid-template-columns: 1fr; } }
 
+  /* ---------- Agenda / terugbelafspraken ---------- */
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal .dow { font-size: 10.5px; font-weight: 700; color: #8a8a96; text-align: center; text-transform: uppercase; letter-spacing: 0.04em; padding-bottom: 2px; }
+  .cal .day { min-height: 62px; border: 1px solid #eceef2; border-radius: 8px; padding: 6px; font-size: 12px; position: relative; background: #fff; }
+  .cal .day.other { background: #fafafc; color: #c2c2ca; }
+  .cal .day.today { border-color: #14151a; border-width: 1.5px; }
+  .cal .day.has { cursor: pointer; }
+  .cal .day.has:hover { box-shadow: 0 2px 8px rgba(20,21,26,0.1); }
+  .cal .day .dnum { font-weight: 600; }
+  .cal .day .cb-badge { position: absolute; bottom: 6px; left: 6px; right: 6px; background: #eef0ff; color: #4f46e5; border-radius: 5px; font-size: 10px; font-weight: 700; padding: 2px 4px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal .day.overdue .cb-badge { background: #fde8e6; color: #b3261e; }
+  .cal .day.sel { outline: 2px solid #4f46e5; outline-offset: -1px; }
+  .ag-group { font-size: 12px; font-weight: 700; color: #6b6b76; margin: 14px 0 6px; }
+  .ag-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid #e6e5eb; border-radius: 9px; margin-bottom: 6px; flex-wrap: wrap; }
+  .ag-item.overdue { border-color: #f2d0cc; background: #fffafa; }
+  .ag-item .when { font-weight: 700; font-size: 12.5px; }
+  .ag-item .who { font-size: 13px; font-weight: 600; }
+  .ag-item .note { font-size: 11.5px; color: #8a8a96; }
+  .ag-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ag-actions a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+
   /* ---------- Responsief (mobiel) ---------- */
   .table-scroll { overflow-x: auto; }
   @media (max-width: 760px) {
@@ -325,6 +346,7 @@
     <div class="nav-tabs">
       <button class="tab-btn active" data-tab="funnel">Sales funnel</button>
       <button class="tab-btn" data-tab="deals">Deals</button>
+      <button class="tab-btn" data-tab="agenda">Agenda</button>
       <button class="tab-btn" data-tab="inbox">Leads inbox</button>
     </div>
   </div>
@@ -415,6 +437,29 @@
         </table>
       </div>
       <div id="deals-empty" class="empty-msg" style="display:none;">Geen deals gevonden.</div>
+    </div>
+  </div>
+
+  <!-- ===================== AGENDA SECTION ===================== -->
+  <div class="section" id="section-agenda">
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div>
+          <div class="panel-title">Terugbelafspraken</div>
+          <div class="panel-desc" style="margin:0;">Alle geplande terugbelafspraken op datum. Klik een dag om te filteren.</div>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button class="btn secondary small" id="ag-prev" type="button">&lsaquo;</button>
+          <span id="ag-month" style="font-weight:600; min-width:135px; text-align:center; font-size:13px;"></span>
+          <button class="btn secondary small" id="ag-next" type="button">&rsaquo;</button>
+          <button class="btn secondary small" id="ag-today" type="button">Vandaag</button>
+        </div>
+      </div>
+      <div id="agenda-cal" class="cal" style="margin-top:14px;"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title" id="agenda-list-title">Alle terugbelafspraken</div>
+      <div id="agenda-list"></div>
     </div>
   </div>
 
@@ -1301,6 +1346,7 @@ function renderAll() {
   renderFlowchart();
   renderAttention();
   renderDealsTable();
+  renderAgenda();
 }
 
 // Defensive event binding: never let a missing element halt the whole script.
@@ -1325,6 +1371,7 @@ try {
       document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
       const target = document.getElementById("section-" + btn.dataset.tab);
       if (target) target.classList.add("active");
+      if (btn.dataset.tab === "agenda") renderAgenda();
     });
   });
 } catch (e) { console.error("tab-btn wiring failed", e); }
@@ -2534,6 +2581,126 @@ on("sc-close", "click", closeSalescall);
 on("sc-close-2", "click", closeSalescall);
 on("sc-generate", "click", generateAgreement);
 on("salescall-backdrop", "click", e => { if (e.target.id === "salescall-backdrop") closeSalescall(); });
+
+/* =========================================================================
+   AGENDA — maandkalender + lijst van alle geplande terugbelafspraken
+   ========================================================================= */
+const MONTHS_NL = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"];
+const DOW_NL = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
+let agendaView = null;
+
+function agendaInit() {
+  if (!agendaView) { const t = new Date(); agendaView = { year: t.getFullYear(), month: t.getMonth(), selectedKey: null }; }
+}
+function dateKey(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+
+function agendaCallbacks() {
+  const out = [];
+  state.deals.forEach(d => {
+    const cb = d.salescall && d.salescall.callback;
+    if (cb && cb.scheduledAt) {
+      const when = new Date(cb.scheduledAt);
+      if (!isNaN(when)) out.push({ deal: d, when, note: cb.note || "" });
+    }
+  });
+  return out.sort((a, b) => a.when - b.when);
+}
+
+function agItem(c) {
+  const d = c.deal;
+  const overdue = c.when < new Date() && dateKey(c.when) !== dateKey(new Date());
+  const when = c.when.toLocaleString("nl-NL", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const tel = d.telefoon ? String(d.telefoon).replace(/[^0-9+]/g, "") : "";
+  return `<div class="ag-item ${overdue ? "overdue" : ""}">
+    <div style="flex:1; min-width:190px;">
+      <span class="when">${esc(when)}</span> &nbsp; <span class="who">${esc(d.naam)}</span>${d.telefoon ? ` <span class="note">· ${esc(d.telefoon)}</span>` : ""}
+      ${c.note ? `<div class="note">${esc(c.note)}</div>` : ""}
+    </div>
+    <div class="ag-actions">
+      ${tel ? `<a class="btn secondary small" href="tel:${esc(tel)}">Bel</a>` : ""}
+      <button class="btn small ag-sc" data-id="${esc(d.id)}">📞 Salescall</button>
+      <button class="btn secondary small ag-funnel" data-node="${d.node}">Funnel</button>
+    </div>
+  </div>`;
+}
+
+function renderAgenda() {
+  const cal = document.getElementById("agenda-cal");
+  const list = document.getElementById("agenda-list");
+  if (!cal || !list) return;
+  agendaInit();
+
+  const cbs = agendaCallbacks();
+  const byDay = {};
+  cbs.forEach(c => { const k = dateKey(c.when); (byDay[k] = byDay[k] || []).push(c); });
+
+  // ---- Maandraster ----
+  const y = agendaView.year, m = agendaView.month;
+  document.getElementById("ag-month").textContent = MONTHS_NL[m] + " " + y;
+  const first = new Date(y, m, 1);
+  const startOffset = (first.getDay() + 6) % 7; // maandag = 0
+  const gridStart = new Date(y, m, 1 - startOffset);
+  const todayKey = dateKey(new Date());
+  let cells = DOW_NL.map(d => `<div class="dow">${d}</div>`).join("");
+  for (let i = 0; i < 42; i++) {
+    const cur = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+    const k = dateKey(cur);
+    const dayCbs = byDay[k] || [];
+    const cls = ["day"];
+    if (cur.getMonth() !== m) cls.push("other");
+    if (k === todayKey) cls.push("today");
+    if (dayCbs.length) cls.push("has");
+    if (dayCbs.length && k < todayKey) cls.push("overdue");
+    if (agendaView.selectedKey === k) cls.push("sel");
+    cells += `<div class="${cls.join(" ")}" data-key="${k}"><span class="dnum">${cur.getDate()}</span>${dayCbs.length ? `<span class="cb-badge">${dayCbs.length}× terugbel</span>` : ""}</div>`;
+  }
+  cal.innerHTML = cells;
+  cal.querySelectorAll(".day.has").forEach(el => el.addEventListener("click", () => {
+    agendaView.selectedKey = agendaView.selectedKey === el.dataset.key ? null : el.dataset.key;
+    renderAgenda();
+  }));
+
+  // ---- Lijst ----
+  const titleEl = document.getElementById("agenda-list-title");
+  let show = cbs;
+  if (agendaView.selectedKey) {
+    show = byDay[agendaView.selectedKey] || [];
+    titleEl.textContent = "Afspraken op " + fmtDate(agendaView.selectedKey);
+  } else {
+    titleEl.textContent = "Alle terugbelafspraken (" + cbs.length + ")";
+  }
+
+  if (!show.length) {
+    list.innerHTML = `<div class="empty-msg">Geen terugbelafspraken${agendaView.selectedKey ? " op deze dag" : " gepland. Plan er een via de 📞 Salescall van een lead."}.</div>`;
+    return;
+  }
+
+  if (agendaView.selectedKey) {
+    list.innerHTML = show.map(agItem).join("");
+  } else {
+    const now = new Date(), tk = dateKey(now);
+    const tomKey = dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+    const bucket = when => {
+      const k = dateKey(when);
+      if (when < now && k !== tk) return "Verlopen";
+      if (k === tk) return "Vandaag";
+      if (k === tomKey) return "Morgen";
+      return "Later";
+    };
+    const groups = {};
+    show.forEach(c => { const b = bucket(c.when); (groups[b] = groups[b] || []).push(c); });
+    list.innerHTML = ["Verlopen", "Vandaag", "Morgen", "Later"]
+      .filter(b => groups[b])
+      .map(b => `<div class="ag-group">${b}</div>` + groups[b].map(agItem).join(""))
+      .join("");
+  }
+  list.querySelectorAll(".ag-sc").forEach(b => b.addEventListener("click", () => openSalescall(b.dataset.id)));
+  list.querySelectorAll(".ag-funnel").forEach(b => b.addEventListener("click", () => openNodePanel(Number(b.dataset.node))));
+}
+
+on("ag-prev", "click", () => { agendaInit(); if (--agendaView.month < 0) { agendaView.month = 11; agendaView.year--; } agendaView.selectedKey = null; renderAgenda(); });
+on("ag-next", "click", () => { agendaInit(); if (++agendaView.month > 11) { agendaView.month = 0; agendaView.year++; } agendaView.selectedKey = null; renderAgenda(); });
+on("ag-today", "click", () => { const t = new Date(); agendaView = { year: t.getFullYear(), month: t.getMonth(), selectedKey: null }; renderAgenda(); });
 
 try {
   populateDealNodeFilter();
