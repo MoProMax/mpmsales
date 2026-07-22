@@ -237,6 +237,10 @@
 </head>
 <body>
 
+<!-- QR Code Generator (Kazuhiko Arase, MIT) — lokaal geserveerd, geen externe host;
+     gebruikt om de TOTP-setup als scanbare QR in de browser te tekenen. -->
+<script src="qrcode.js"></script>
+
 <div id="auth-gate">
   <div class="card">
     <h2>Mo Pro Max</h2>
@@ -255,10 +259,17 @@
       <p class="hint">Open je authenticator-app en vul de 6-cijferige code in.</p>
     </div>
     <div id="step-enroll">
-      <p class="sub" style="margin-bottom:14px;">Tweestapsverificatie instellen. Voeg deze sleutel toe in Google Authenticator (of een andere TOTP-app) via <b>&ldquo;Setup-sleutel invoeren&rdquo;</b>, en bevestig met de code die de app toont.</p>
-      <label>Setup-sleutel</label>
-      <div id="enroll-secret" style="font-family:monospace; font-size:14px; letter-spacing:1px; background:#f5f5f7; border:1px solid #e6e5eb; border-radius:8px; padding:10px 12px; word-break:break-all;">—</div>
-      <p class="hint" style="margin-top:6px;"><a id="enroll-otpauth" href="#" style="color:#4f46e5;"></a> · type: tijdgebaseerd, 6 cijfers</p>
+      <p class="sub" style="margin-bottom:14px;">Tweestapsverificatie instellen. Open Google Authenticator (of een andere TOTP-app), kies <b>&ldquo;QR-code scannen&rdquo;</b> en scan de code hieronder. Bevestig daarna met de 6-cijferige code die de app toont.</p>
+      <div id="enroll-qr" style="display:flex; justify-content:center; padding:14px; background:#fff; border:1px solid #e6e5eb; border-radius:10px;">
+        <div style="width:180px; height:180px; display:flex; align-items:center; justify-content:center; color:#9a9aa4; font-size:12px;">QR laden…</div>
+      </div>
+      <details style="margin-top:10px;">
+        <summary style="cursor:pointer; font-size:12px; color:#6b6b76;">Kan je niet scannen? Voer de sleutel handmatig in</summary>
+        <div style="margin-top:8px;">
+          <div id="enroll-secret" style="font-family:monospace; font-size:14px; letter-spacing:1px; background:#f5f5f7; border:1px solid #e6e5eb; border-radius:8px; padding:10px 12px; word-break:break-all;">—</div>
+          <p class="hint" style="margin-top:6px;">Kies in de app &ldquo;Setup-sleutel invoeren&rdquo; · type: tijdgebaseerd, 6 cijfers</p>
+        </div>
+      </details>
       <label style="margin-top:14px;">Code uit de app</label>
       <input type="text" id="enroll-code" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6 cijfers" autocomplete="one-time-code">
       <button id="enroll-confirm-btn" type="button">Koppelen en inloggen</button>
@@ -866,7 +877,33 @@ on("auth-login-btn", "click", async () => {
   }
 });
 
-// Start TOTP-enrollment: vraag een geheim aan bij Google en toon de setup-key.
+// Tekent de otpauth-URI als scanbare QR-code in de browser (lokaal, geen
+// externe aanroep). Valt stil terug op de handmatige sleutel als het niet lukt.
+function renderEnrollQr(text) {
+  const host = document.getElementById("enroll-qr");
+  if (!host) return;
+  try {
+    if (typeof qrcode !== "function") throw new Error("qr-lib niet geladen");
+    let q = null;
+    try { q = qrcode(0, "M"); q.addData(text); q.make(); }
+    catch (_) {
+      for (let t = 1; t <= 40 && !q; t++) {
+        try { const c = qrcode(t, "M"); c.addData(text); c.make(); q = c; } catch (e2) {}
+      }
+    }
+    if (!q) throw new Error("payload te lang");
+    const img = document.createElement("img");
+    img.src = q.createDataURL(5, 2);
+    img.alt = "TOTP QR-code";
+    img.style.cssText = "width:190px; height:190px; image-rendering:pixelated;";
+    host.innerHTML = "";
+    host.appendChild(img);
+  } catch (e) {
+    host.innerHTML = '<div style="font-size:12px; color:#9a9aa4; text-align:center;">QR niet beschikbaar — gebruik de sleutel hieronder.</div>';
+  }
+}
+
+// Start TOTP-enrollment: vraag een geheim aan bij Google en toon QR + setup-key.
 async function beginEnrollment(idToken) {
   try {
     const s = await mfaEnrollStart(idToken);
@@ -876,8 +913,7 @@ async function beginEnrollment(idToken) {
     const otpauth = `otpauth://totp/${encodeURIComponent("Mo Pro Max")}:${encodeURIComponent(email)}?secret=${s.sharedSecretKey}&issuer=${encodeURIComponent("Mo Pro Max")}&algorithm=SHA1&digits=6&period=30`;
     const box = document.getElementById("enroll-secret");
     if (box) box.textContent = grouped;
-    const link = document.getElementById("enroll-otpauth");
-    if (link) { link.href = otpauth; link.textContent = "otpauth-link openen"; }
+    renderEnrollQr(otpauth);
     gateShowStep("step-enroll");
     document.getElementById("enroll-code")?.focus();
   } catch (e) {
