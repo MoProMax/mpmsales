@@ -2092,6 +2092,11 @@ const SERVICE_GROUPS = [
     "Hogere zoekposities (SEO)", "Review-strategie", "Maandelijkse rapportage"] }
 ];
 
+// Behoefteanalyse-script. Elk blok = een fase in de call. `sec` bepaalt onder
+// welke kop het antwoord in de functionaliteitenovereenkomst belandt; `internal`
+// blijft intern (niet in de overeenkomst). Structuur volgt de standaard
+// web-design discovery: doel, doelgroep, sitemap, functionaliteit, content,
+// design, techniek, vindbaarheid, planning.
 const CALL_SECTIONS = [
   {
     title: "1 · Opening & binding",
@@ -2103,39 +2108,160 @@ const CALL_SECTIONS = [
       "Doel: de klant op zijn gemak stellen zodat je gericht vragen mag stellen. Nog niet pitchen."
     ],
     questions: [
-      { key: "contact", type: "input", internal: true, label: "Met wie spreek je? (naam + rol)" },
+      { key: "contact", type: "input", internal: true, label: "Met wie spreek je? (naam)" },
+      { key: "rol", type: "input", internal: true, label: "Functie / rol", hint: "is dit de beslisser?" },
       { key: "sfeer", type: "textarea", internal: true, label: "Eerste indruk / sfeer van het gesprek", placeholder: "open, gehaast, sceptisch, enthousiast..." },
       { key: "toestemming", type: "check", label: "Klant staat open voor een paar vragen" }
     ]
   },
   {
-    title: "2 · Situatie nu",
-    guideTitle: "Luister, vat samen, oordeel niet",
+    title: "2 · Het bedrijf",
+    guideTitle: "Begrijp het bedrijf vóór je iets voorstelt",
     guide: [
-      "Laat de klant praten en noteer. Herhaal kort wat je hoort (\"dus als ik je goed begrijp...\").",
-      "Zoek naar: hebben ze al een website, hoe vindbaar zijn ze, hoe komen klanten binnen?"
+      "Laat de klant vertellen — jij noteert en vat samen (\"dus als ik je goed begrijp...\").",
+      "Werkgebied is goud voor lokale vindbaarheid: welke plaatsen bedienen ze?"
     ],
     questions: [
-      { key: "kernactiviteit", type: "textarea", short: "Kernactiviteit", label: "Wat doet het bedrijf precies? Wat maakt hen bijzonder?" },
-      { key: "huidige_site", type: "textarea", short: "Huidige online aanwezigheid", label: "Hebben ze nu een website / online aanwezigheid? Wat werkt wel en niet?" },
-      { key: "vindbaarheid_nu", type: "textarea", short: "Vindbaarheid nu", label: "Als iemand ze op Google zoekt — wat vindt die nu?" },
-      { key: "klantenstroom", type: "textarea", short: "Klantenstroom", label: "Hoe komen de meeste klanten nu binnen?", placeholder: "mond-tot-mond, socials, Google, loop..." }
+      { key: "kernactiviteit", type: "textarea", sec: "bedrijf", short: "Kernactiviteit & USP", label: "Wat doet het bedrijf precies? Wat maakt hen uniek?" },
+      { key: "doelgroep", type: "textarea", sec: "bedrijf", short: "Doelgroep", label: "Wie zijn de klanten?", placeholder: "particulier/zakelijk, leeftijd, type klant" },
+      { key: "werkgebied", type: "input", sec: "bedrijf", short: "Werkgebied", label: "In welke plaats(en) / regio werken ze?", hint: "belangrijk voor lokale vindbaarheid" },
+      { key: "concurrenten", type: "textarea", sec: "bedrijf", short: "Concurrenten", label: "Wie zijn de concurrenten en wat vinden ze daarvan?" }
     ]
   },
   {
-    title: "3 · Behoefte & pijn",
+    title: "3 · Doel van de website",
+    guideTitle: "Eén hoofddoel scherp krijgen",
+    guide: [
+      "Een site met één helder doel converteert beter dan een site die alles wil.",
+      "Vertaal het doel naar één gewenste actie van de bezoeker."
+    ],
+    questions: [
+      { key: "hoofddoel", type: "select", sec: "bedrijf", short: "Hoofddoel website", label: "Wat is het hoofddoel van de website?", options: ["", "Meer klanten / leads", "Online verkopen (webshop)", "Afspraken / boekingen", "Professionele uitstraling", "Informeren", "Anders"] },
+      { key: "succes", type: "textarea", sec: "behoefte", short: "Wanneer is het een succes", label: "Wanneer is de website over 6 maanden een succes? (concreet)" },
+      { key: "gewenste_actie", type: "input", sec: "bedrijf", short: "Gewenste actie bezoeker", label: "Wat moet een bezoeker vooral doen?", placeholder: "bellen, boeken, kopen, formulier, route" },
+      { key: "kernboodschap", type: "textarea", sec: "behoefte", short: "Kernboodschap", label: "Welke boodschap komt nu niet goed over en moet wél overkomen?" }
+    ]
+  },
+  {
+    title: "4 · Situatie nu",
+    guideTitle: "Meet de startsituatie",
+    guide: [
+      "Bestaande site + wat wel/niet werkt = je vertrekpunt.",
+      "Check het Google Bedrijfsprofiel: vaak laaghangend fruit voor vindbaarheid."
+    ],
+    questions: [
+      { key: "huidige_site", type: "textarea", sec: "techniek", short: "Huidige website", label: "Hebben ze nu een website? Wat werkt wel en niet?" },
+      { key: "huidige_url", type: "input", sec: "techniek", short: "Huidige URL", label: "Huidig website-adres (indien aanwezig)" },
+      { key: "klantenstroom", type: "textarea", sec: "behoefte", short: "Klantenstroom nu", label: "Hoe komen de meeste klanten nu binnen?", placeholder: "mond-tot-mond, socials, Google, loop..." },
+      { key: "vindbaarheid_nu", type: "textarea", sec: "vindbaarheid", short: "Vindbaarheid nu", label: "Als iemand ze op Google zoekt — wat vindt die nu?" },
+      { key: "google_business", type: "select", sec: "vindbaarheid", short: "Google Bedrijfsprofiel", label: "Hebben ze een Google Bedrijfsprofiel?", options: ["", "Ja, actief", "Ja, maar verwaarloosd", "Nee", "Weet niet"] }
+    ]
+  },
+  {
+    title: "5 · Behoefte & pijn",
     guideTitle: "Vind de pijn — koppel aan online aanwezigheid, vindbaarheid, automatisatie en gemak",
     guide: [
       "Zoek waar tijd, geld of klanten weglekken; dat is je haakje.",
       "Koppel elke pijn aan een oplossing: minder gedoe (automatisatie), meer klanten (vindbaarheid), professioneler (design)."
     ],
     questions: [
-      { key: "pijn", type: "textarea", short: "Grootste pijn", label: "Wat kost nu het meeste tijd, gedoe of frustratie?" },
-      { key: "automatisatie", type: "textarea", short: "Automatisatie-kans", label: "Wat zou het schelen als klanten zelf online boeken / bestellen / aanvragen?" },
-      { key: "doel", type: "textarea", short: "Doelstelling", label: "Waar wil het bedrijf over 6–12 maanden staan?" },
-      { key: "voorbeelden", type: "textarea", short: "Referenties / concurrenten", label: "Zijn er websites of concurrenten die ze goed vinden?" }
+      { key: "pijn", type: "textarea", sec: "behoefte", short: "Grootste pijn", label: "Wat kost nu het meeste tijd, gedoe of frustratie?" },
+      { key: "automatisatie", type: "textarea", sec: "behoefte", short: "Automatisatie-kans", label: "Wat zou het schelen als klanten zelf online boeken / bestellen / aanvragen?" },
+      { key: "doel_termijn", type: "textarea", sec: "behoefte", short: "Doel 6–12 mnd", label: "Waar wil het bedrijf over 6–12 maanden staan?" }
+    ]
+  },
+  {
+    title: "6 · Pagina's & content",
+    guideTitle: "Leg de omvang (scope) vast — dit voorkomt scope-creep",
+    guide: [
+      "Spreek de pagina's nu af; zo weet iedereen wat wél en niet in het pakket zit.",
+      "Wie levert teksten en beeld is de #1 vertragingsbron — maak dit expliciet."
+    ],
+    questions: [
+      { key: "paginas", type: "textarea", sec: "content", short: "Gewenste pagina's", label: "Welke pagina's moet de site hebben?", placeholder: "Home, Over ons, Diensten, Prijzen, Portfolio, Contact..." },
+      { key: "aantal_paginas", type: "select", sec: "content", short: "Omvang", label: "Hoeveel pagina's ongeveer?", options: ["", "1 (onepager)", "2–5 pagina's", "6–10 pagina's", "10+ pagina's"] },
+      { key: "content_teksten", type: "select", sec: "content", short: "Teksten door", label: "Wie levert de teksten?", options: ["", "Klant levert aan", "Mo Pro Max schrijft", "Samen"] },
+      { key: "content_beeld", type: "select", sec: "content", short: "Beeldmateriaal", label: "Wie levert foto's / beeld?", options: ["", "Klant levert foto's", "Stockbeeld", "Fotoshoot nodig"] },
+      { key: "content_toon", type: "input", sec: "content", short: "Tone of voice", label: "Welke toon past bij het merk?", placeholder: "formeel, informeel, speels, deskundig..." },
+      { key: "logo_huisstijl", type: "select", sec: "content", short: "Logo & huisstijl", label: "Status logo & huisstijl?", options: ["", "Bestaat al", "Moet gemaakt worden", "Opfrissen"] },
+      { key: "talen", type: "input", sec: "content", short: "Talen", label: "In welke ta(a)l(en)?", placeholder: "NL, EN, ..." }
+    ]
+  },
+  {
+    title: "7 · Functionaliteiten in de website",
+    showServices: true,
+    guideTitle: "Concreet maken — dit is de kern van de overeenkomst",
+    guide: [
+      "Vink hieronder aan wat er in de site moet. Vraag door op de zware onderdelen.",
+      "Webshop: hoeveel producten, welke betaalmethodes, verzending? Boeking: welke diensten, medewerkers, vooraf betalen?"
+    ],
+    questions: [
+      { key: "functionaliteit_notities", type: "textarea", sec: "functionaliteit", short: "Aanvullende wensen", label: "Aanvullende functionele wensen (naast de aangevinkte diensten)" },
+      { key: "webshop_details", type: "textarea", sec: "functionaliteit", short: "Webshop", label: "Bij webshop: aantal producten, betaalmethodes, verzending?" },
+      { key: "boeking_details", type: "textarea", sec: "functionaliteit", short: "Boekingssysteem", label: "Bij boeking: welke diensten, medewerkers, duur, vooraf betalen?" },
+      { key: "integraties", type: "textarea", sec: "functionaliteit", short: "Koppelingen", label: "Welke koppelingen / tools?", placeholder: "boekhouding, agenda, CRM, social, nieuwsbrief" },
+      { key: "formulieren", type: "textarea", sec: "functionaliteit", short: "Formulieren", label: "Welke formulieren en welke info moet je opvragen?" }
+    ]
+  },
+  {
+    title: "8 · Design & uitstraling",
+    guideTitle: "Richting geven aan het ontwerp",
+    guide: [
+      "Drie woorden vangen het gevoel beter dan een lange uitleg.",
+      "Vraag óók naar voorbeelden die ze lelijk vinden — dat scheelt revisierondes."
+    ],
+    questions: [
+      { key: "drie_woorden", type: "input", sec: "design", short: "Uitstraling in 3 woorden", label: "Welke 3 woorden beschrijven de gewenste uitstraling?", placeholder: "modern, warm, luxe, strak, speels..." },
+      { key: "stijl", type: "textarea", sec: "design", short: "Stijlvoorkeuren", label: "Verdere stijlvoorkeuren of wensen?" },
+      { key: "kleuren", type: "input", sec: "design", short: "Kleurvoorkeur", label: "Kleurvoorkeuren / bestaande merkkleuren" },
+      { key: "referenties", type: "textarea", sec: "design", short: "Referenties (mooi)", label: "Websites die ze mooi vinden (met waarom)" },
+      { key: "vermijden", type: "textarea", sec: "design", short: "Vermijden", label: "Wat moet absoluut vermeden worden?" }
+    ]
+  },
+  {
+    title: "9 · Techniek & vindbaarheid",
+    guideTitle: "Verantwoordelijkheden en vindbaarheid helder",
+    guide: [
+      "Wie is eigenaar van domein, hosting en e-mail? Voorkomt gedoe bij livegang.",
+      "Zoekwoorden = waarop willen ze gevonden worden. Basis voor de SEO-aanpak."
+    ],
+    questions: [
+      { key: "domein", type: "input", sec: "techniek", short: "Domeinnaam", label: "Hebben ze al een domeinnaam? Welke?" },
+      { key: "hosting_email", type: "input", sec: "techniek", short: "Hosting & e-mail", label: "Huidige hosting / zakelijke e-mail?" },
+      { key: "beheer", type: "select", sec: "techniek", short: "Beheer na oplevering", label: "Wie beheert de site straks?", options: ["", "Mo Pro Max (onderhoud)", "Klant zelf (training nodig)", "Nog onbekend"] },
+      { key: "avg_privacy", type: "input", sec: "techniek", short: "Privacy / AVG", label: "Bijzondere privacy-/AVG-eisen of klantgegevens?" },
+      { key: "seo_keywords", type: "textarea", sec: "vindbaarheid", short: "Belangrijkste zoekwoorden", label: "Op welke zoekopdrachten willen ze gevonden worden?", placeholder: "bijv. kapper Amsterdam, bruidskapsel..." }
+    ]
+  },
+  {
+    title: "10 · Afronding",
+    guideTitle: "Sluit af met een concrete vervolgstap",
+    guide: [
+      "Vat samen, benoem de gekozen richting en spreek een concrete vervolgstap af.",
+      "Leg budget/beslisser intern vast — dat helpt de opvolging, maar hoort niet in de overeenkomst."
+    ],
+    questions: [
+      { key: "deadline", type: "input", sec: "planning", short: "Gewenste opleverdatum", label: "Wanneer wil men live? Harde deadline?", placeholder: "bijv. voor het hoogseizoen, binnen 6 weken" },
+      { key: "uitkomst", type: "select", sec: "planning", short: "Uitkomst gesprek", label: "Uitkomst van dit gesprek", options: ["", "Vervolgafspraak gepland", "Offerte / overeenkomst sturen", "Klant denkt na", "Niet geïnteresseerd"] },
+      { key: "vervolgstap", type: "textarea", sec: "planning", short: "Afgesproken vervolgstap", label: "Concrete vervolgstap + wanneer" },
+      { key: "beslisser", type: "input", internal: true, label: "Wie beslist er uiteindelijk?" },
+      { key: "budget", type: "textarea", internal: true, label: "Budgetindruk / bezwaren", hint: "intern — niet in de overeenkomst" },
+      { key: "algemene_notities", type: "textarea", internal: true, label: "Overige notities" }
     ]
   }
+];
+
+// Volgorde en koppen van de functionaliteitenovereenkomst; elke `sec` verwijst
+// naar de `sec`-tags in CALL_SECTIONS hierboven.
+const AGREEMENT_ORDER = [
+  { sec: "bedrijf", title: "1. BEDRIJF & DOEL" },
+  { sec: "behoefte", title: "2. BEHOEFTE & DOELSTELLING" },
+  { sec: "content", title: "3. PAGINA'S & CONTENT" },
+  { sec: "__functionaliteit__", title: "4. FUNCTIONALITEITEN" },
+  { sec: "vindbaarheid", title: "5. VINDBAARHEID & SEO" },
+  { sec: "design", title: "6. DESIGN & UITSTRALING" },
+  { sec: "techniek", title: "7. TECHNIEK & HOSTING" },
+  { sec: "__planning__", title: "8. PLANNING & INVESTERING" }
 ];
 
 const SC_PAKKET_OPTS = [
@@ -2201,43 +2327,44 @@ function renderSalescallBody(deal) {
   const body = document.getElementById("salescall-body");
   let html = "";
 
+  const qHint = q => q.hint ? ` <span class="hint2">${esc(q.hint)}</span>` : "";
+
   CALL_SECTIONS.forEach(sec => {
     html += `<div class="sc-sec"><h3>${esc(sec.title)}</h3>`;
     if (sec.guide && sec.guide.length) {
       html += `<div class="sc-guide"><b>${esc(sec.guideTitle || "Aanpak")}:</b><ul>${sec.guide.map(g => `<li>${esc(g)}</li>`).join("")}</ul></div>`;
+    }
+    // Diensten-checkboxes (uit mopromax.com) binnen de functionaliteiten-sectie
+    if (sec.showServices) {
+      SERVICE_GROUPS.forEach(g => {
+        html += `<div class="sc-svc-group"><div class="g">${esc(g.group)}</div><div class="sc-svc-grid">`;
+        g.items.forEach(item => {
+          const key = scKey(g.group + " " + item);
+          html += `<label><input type="checkbox" class="sc-svc" data-key="${esc(key)}" ${sc.services[key] ? "checked" : ""}> ${esc(item)}</label>`;
+        });
+        html += `</div></div>`;
+      });
     }
     sec.questions.forEach(q => {
       const val = sc.answers[q.key];
       if (q.type === "check") {
         html += `<div class="sc-q"><label style="display:flex; gap:8px; align-items:center; font-weight:600;"><input type="checkbox" class="sc-answer-check" data-key="${esc(q.key)}" ${val ? "checked" : ""}> ${esc(q.label)}</label></div>`;
       } else if (q.type === "input") {
-        html += `<div class="sc-q"><label>${esc(q.label)}</label><input type="text" class="sc-answer" data-key="${esc(q.key)}" value="${esc(val || "")}" placeholder="${esc(q.placeholder || "")}"></div>`;
+        html += `<div class="sc-q"><label>${esc(q.label)}${qHint(q)}</label><input type="text" class="sc-answer" data-key="${esc(q.key)}" value="${esc(val || "")}" placeholder="${esc(q.placeholder || "")}"></div>`;
+      } else if (q.type === "select") {
+        html += `<div class="sc-q"><label>${esc(q.label)}${qHint(q)}</label><select class="sc-answer" data-key="${esc(q.key)}">${(q.options || []).map(o => `<option ${String(val || "") === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select></div>`;
       } else {
-        html += `<div class="sc-q"><label>${esc(q.label)}</label><textarea class="sc-answer" data-key="${esc(q.key)}" placeholder="${esc(q.placeholder || "")}">${esc(val || "")}</textarea></div>`;
+        html += `<div class="sc-q"><label>${esc(q.label)}${qHint(q)}</label><textarea class="sc-answer" data-key="${esc(q.key)}" placeholder="${esc(q.placeholder || "")}">${esc(val || "")}</textarea></div>`;
       }
     });
     html += `</div>`;
   });
 
-  // Diensten (checkboxes uit mopromax.com)
-  html += `<div class="sc-sec"><h3>Diensten in de website</h3>
-    <div class="sc-guide">Vink aan wat er in de website moet. Dit vormt de basis van de functionaliteitenovereenkomst.</div>`;
-  SERVICE_GROUPS.forEach(g => {
-    html += `<div class="sc-svc-group"><div class="g">${esc(g.group)}</div><div class="sc-svc-grid">`;
-    g.items.forEach(item => {
-      const key = scKey(g.group + " " + item);
-      html += `<label><input type="checkbox" class="sc-svc" data-key="${esc(key)}" ${sc.services[key] ? "checked" : ""}> ${esc(item)}</label>`;
-    });
-    html += `</div></div>`;
-  });
-  html += `</div>`;
-
   // Pakket & onderhoud
-  html += `<div class="sc-sec"><h3>Pakket & investering</h3><div class="sc-row2">
+  html += `<div class="sc-sec"><h3>Pakket &amp; investering</h3><div class="sc-row2">
       <div class="sc-q"><label>Pakket</label><select id="sc-pakket">${SC_PAKKET_OPTS.map(o => `<option value="${esc(o[0])}">${esc(o[1])}</option>`).join("")}</select></div>
       <div class="sc-q"><label>Onderhoudscontract</label><select id="sc-onderhoud">${SC_ONDERHOUD_OPTS.map(o => `<option value="${esc(o[0])}">${esc(o[1])}</option>`).join("")}</select></div>
     </div>
-    <div class="sc-q"><label>Budgetindruk / beslisser <span class="hint2">(intern — komt niet in de overeenkomst)</span></label><textarea class="sc-answer" data-key="budget" placeholder="wie beslist, indicatie budget, bezwaren...">${esc(sc.answers.budget || "")}</textarea></div>
   </div>`;
 
   // Terugbelafspraak
@@ -2262,7 +2389,13 @@ function renderSalescallBody(deal) {
   onderhoudSel.value = String(deal.onderhoud || 0);
 
   body.querySelectorAll(".sc-answer").forEach(el => {
-    el.addEventListener("input", () => { sc.answers[el.dataset.key] = el.value; saveSalescallDebounced(); });
+    const handler = () => {
+      sc.answers[el.dataset.key] = el.value;
+      if (el.dataset.key === "contact" && el.value.trim()) deal.contact = el.value.trim();
+      saveSalescallDebounced();
+    };
+    el.addEventListener("input", handler);
+    el.addEventListener("change", handler);
   });
   body.querySelectorAll(".sc-answer-check").forEach(el => {
     el.addEventListener("change", () => { sc.answers[el.dataset.key] = el.checked; saveSalescallDebounced(); });
@@ -2299,42 +2432,57 @@ function scheduleCallback(deal) {
   renderAll();
 }
 
+// Verzamelt alle ingevulde (niet-interne) antwoorden van een bepaalde `sec`,
+// in de volgorde waarin ze in het script staan.
+function scAnswersForSec(sc, secId) {
+  const rows = [];
+  CALL_SECTIONS.forEach(section => section.questions.forEach(q => {
+    if (q.internal || q.type === "check" || q.sec !== secId) return;
+    const a = String(sc.answers[q.key] || "").trim();
+    if (a) rows.push("• " + (q.short || q.label) + ": " + a);
+  }));
+  return rows;
+}
+
 function buildAgreement(deal) {
   const sc = ensureSalescall(deal);
   const [pkgNaam, pkgPrijs] = (deal.pakketKey || "Starter|199").split("|");
+  const rule = "-".repeat(50);
   const L = [];
   L.push("MO PRO MAX — FUNCTIONALITEITENOVEREENKOMST");
   L.push("=".repeat(50));
   L.push("Bedrijf   : " + (deal.naam || ""));
-  if (deal.contact) L.push("Contact   : " + deal.contact);
+  const contactNaam = deal.contact || sc.answers.contact;
+  if (contactNaam) L.push("Contact   : " + contactNaam + (sc.answers.rol ? " (" + sc.answers.rol + ")" : ""));
   if (deal.telefoon) L.push("Telefoon  : " + deal.telefoon);
   if (deal.email) L.push("E-mail    : " + deal.email);
   L.push("Datum     : " + new Date().toLocaleDateString("nl-NL"));
-  L.push("");
-  L.push("BEHOEFTE & DOELSTELLING");
-  L.push("-".repeat(50));
-  let anyNeed = false;
-  CALL_SECTIONS.forEach(sec => sec.questions.forEach(q => {
-    if (q.type === "check" || q.internal) return;
-    const a = String(sc.answers[q.key] || "").trim();
-    if (a) { L.push("• " + (q.short || q.label) + ": " + a); anyNeed = true; }
-  }));
-  if (!anyNeed) L.push("(nog niet ingevuld)");
-  L.push("");
-  L.push("OVEREENGEKOMEN FUNCTIONALITEITEN");
-  L.push("-".repeat(50));
-  let anySvc = false;
-  SERVICE_GROUPS.forEach(g => {
-    const items = g.items.filter(it => sc.services[scKey(g.group + " " + it)]);
-    if (items.length) { anySvc = true; L.push(g.group + ":"); items.forEach(it => L.push("   [x] " + it)); }
+
+  AGREEMENT_ORDER.forEach(block => {
+    if (block.sec === "__functionaliteit__") {
+      L.push(""); L.push(block.title); L.push(rule);
+      let anySvc = false;
+      SERVICE_GROUPS.forEach(g => {
+        const items = g.items.filter(it => sc.services[scKey(g.group + " " + it)]);
+        if (items.length) { anySvc = true; L.push(g.group + ":"); items.forEach(it => L.push("   [x] " + it)); }
+      });
+      if (!anySvc) L.push("(nog geen diensten aangevinkt)");
+      scAnswersForSec(sc, "functionaliteit").forEach(r => L.push(r));
+    } else if (block.sec === "__planning__") {
+      const rows = scAnswersForSec(sc, "planning");
+      L.push(""); L.push(block.title); L.push(rule);
+      rows.forEach(r => L.push(r));
+      L.push("• Pakket: " + pkgNaam + (Number(pkgPrijs) ? " — €" + pkgPrijs : " — op aanvraag"));
+      if (Number(deal.onderhoud)) L.push("• Onderhoud: €" + deal.onderhoud + "/mnd");
+      if (Number(deal.waarde)) L.push("• Eenmalige waarde: €" + deal.waarde);
+    } else {
+      const rows = scAnswersForSec(sc, block.sec);
+      if (!rows.length) return; // lege secties overslaan
+      L.push(""); L.push(block.title); L.push(rule);
+      rows.forEach(r => L.push(r));
+    }
   });
-  if (!anySvc) L.push("(nog geen diensten aangevinkt)");
-  L.push("");
-  L.push("PAKKET & INVESTERING");
-  L.push("-".repeat(50));
-  L.push("Pakket    : " + pkgNaam + (Number(pkgPrijs) ? " — €" + pkgPrijs : " — op aanvraag"));
-  if (Number(deal.onderhoud)) L.push("Onderhoud : €" + deal.onderhoud + "/mnd");
-  if (Number(deal.waarde)) L.push("Eenmalig  : €" + deal.waarde);
+
   L.push("");
   L.push("Deze overeenkomst vat de besproken behoefte en gekozen functionaliteiten");
   L.push("samen. Prijzen zijn indicatief tot definitief akkoord.");
