@@ -6,17 +6,29 @@ Sales-dashboard voor mopromax.com: leads inbox, niet-lineaire sales/delivery-fun
 
 ## Beveiliging — belangrijk
 
-De data wordt beschermd door **Firestore security rules**, niet door de login-pagina zelf. Zet daarom de rules uit [`firestore.rules`](firestore.rules) in de Firebase console:
+Twee lagen, beide **server-side afgedwongen door Google** (niet door de pagina zelf):
 
-1. Ga naar [Firebase console](https://console.firebase.google.com/) → project **mpms-e59f8**
-2. Firestore Database → selecteer database **mpms1** → tabblad **Regels**
-3. Plak de inhoud van `firestore.rules` en klik **Publiceren**
+1. **Firestore security rules** beperken alle data tot het eigenaar-account.
+2. **Echte tweestapsverificatie (TOTP-MFA)** via Firebase Authentication with Identity Platform: Google geeft pas een geldig token uit nádat de authenticator-code klopt. De pagina kan er niet omheen, want zonder dat token weigert Firestore elke lees- en schrijfactie.
 
-Zonder deze rules kan iedere (eventueel anoniem) ingelogde Firebase-gebruiker bij de data — de API-key in de pagina is publiek en dat hoort zo, maar de rules moeten de toegang beperken tot het eigenaar-account.
+### Eenmalige setup (in de Firebase / Google Cloud console)
 
-### Wat de 2FA-stap wel en niet doet
+**a) Firestore-regels publiceren**
+1. [Firebase console](https://console.firebase.google.com/) → project **mpms-e59f8**
+2. Firestore Database → database **mpms1** → tabblad **Regels**
+3. Plak [`firestore.rules`](firestore.rules) en klik **Publiceren**
 
-De Google Authenticator-stap in het login-scherm is een **drempel in de browser**, geen server-side beveiliging: het TOTP-geheim staat in Firestore en de controle gebeurt client-side. Iemand die het wachtwoord kent, kan met de Firestore REST API om de 2FA-stap heen. De echte bescherming is dus: **een sterk, uniek wachtwoord** + de security rules hierboven. Wil je échte 2FA, dan is een backend (bijv. Cloud Function) nodig die de TOTP-code verifieert vóór er een token wordt uitgegeven.
+**b) TOTP-MFA inschakelen**
+1. Firebase console → **Authentication** → **Sign-in method** → onderaan **Advanced** / **SMS multi-factor authentication** → kies **TOTP (authenticator app)** en zet aan.
+   (Dit vereist **Firebase Authentication with Identity Platform**; upgraden kan de console je vragen — de gratis laag dekt ruim voldoende gebruikers.)
+2. Log daarna in op de site met e-mail + wachtwoord. Omdat er nog geen tweede factor gekoppeld is, toont de pagina eenmalig een **setup-sleutel**. Voeg die in Google Authenticator toe via *"Setup-sleutel invoeren"* en bevestig met de 6-cijferige code.
+3. Vanaf dat moment vraagt élke login om de code, door Google gecontroleerd.
+
+Zolang stap (b) nog niet gedaan is, meldt het inlogscherm netjes dat TOTP-MFA nog aangezet moet worden.
+
+### Waarom dit nu écht 2FA is
+
+De TOTP-code wordt door **Google's Identity Platform** geverifieerd, niet in de browser. Iemand met alleen het wachtwoord krijgt geen bruikbaar token en komt dus niet bij de data — ook niet via de Firestore REST API. De publieke API-key in de pagina is prima; die identificeert alleen het project en verleent op zichzelf geen toegang. Het oude, client-side TOTP-geheim (`authConfig/mfa` in Firestore) wordt niet meer gebruikt en mag verwijderd worden.
 
 ## Structuur in Firestore
 
@@ -26,7 +38,7 @@ De Google Authenticator-stap in het login-scherm is een **drempel in de browser*
 | `deals/{id}` | Deals met fase, waarde, historie, activiteiten, opvolgdatum |
 | `requests/{id}` | Log van onderzoeksaanvragen |
 | `meta/status` | Sync-metadata |
-| `authConfig/mfa` | TOTP-geheim voor de 2FA-stap |
+| `authConfig/mfa` | *(verouderd — oud client-side TOTP-geheim, niet meer in gebruik)* |
 
 ## Deployen
 

@@ -232,7 +232,7 @@
   #auth-gate button:disabled { opacity: .5; cursor: default; }
   #auth-gate .error { color: #c0392b; font-size: 12.5px; margin-top: 12px; min-height: 16px; }
   #auth-gate .hint { color: #9a9aa4; font-size: 11.5px; margin-top: 10px; }
-  #step-totp { display: none; }
+  #step-totp, #step-enroll { display: none; }
 </style>
 </head>
 <body>
@@ -249,10 +249,19 @@
       <button id="auth-login-btn" type="button">Inloggen</button>
     </div>
     <div id="step-totp">
-      <label>Google Authenticator-code</label>
+      <label>Authenticator-code</label>
       <input type="text" id="auth-totp" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6 cijfers" autocomplete="one-time-code">
       <button id="auth-totp-btn" type="button">Verifiëren</button>
-      <p class="hint">Open Google Authenticator en vul de 6-cijferige code in.</p>
+      <p class="hint">Open je authenticator-app en vul de 6-cijferige code in.</p>
+    </div>
+    <div id="step-enroll">
+      <p class="sub" style="margin-bottom:14px;">Tweestapsverificatie instellen. Voeg deze sleutel toe in Google Authenticator (of een andere TOTP-app) via <b>&ldquo;Setup-sleutel invoeren&rdquo;</b>, en bevestig met de code die de app toont.</p>
+      <label>Setup-sleutel</label>
+      <div id="enroll-secret" style="font-family:monospace; font-size:14px; letter-spacing:1px; background:#f5f5f7; border:1px solid #e6e5eb; border-radius:8px; padding:10px 12px; word-break:break-all;">—</div>
+      <p class="hint" style="margin-top:6px;"><a id="enroll-otpauth" href="#" style="color:#4f46e5;"></a> · type: tijdgebaseerd, 6 cijfers</p>
+      <label style="margin-top:14px;">Code uit de app</label>
+      <input type="text" id="enroll-code" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6 cijfers" autocomplete="one-time-code">
+      <button id="enroll-confirm-btn" type="button">Koppelen en inloggen</button>
     </div>
     <div class="error" id="auth-error"></div>
   </div>
@@ -700,7 +709,10 @@ function fbSetStatus(text, ok) {
   el.style.color = ok === true ? "#1a9e5c" : ok === false ? "#c0392b" : "#8a8a96";
 }
 
-async function fbSignInWithPassword(email, password) {
+// Rauwe sign-in: geeft óf { idToken, ... } (account zonder MFA) óf
+// { mfaPendingCredential, mfaInfo } (MFA vereist) terug. Bij MFA geeft Google
+// géén bruikbaar idToken vrij tot de TOTP-code via mfaSignIn:finalize klopt.
+async function fbSignInRaw(email, password) {
   const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_CONFIG.apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -711,7 +723,56 @@ async function fbSignInWithPassword(email, password) {
     const msg = (data && data.error && data.error.message) || ("status " + res.status);
     throw new Error("Inloggen mislukt: " + msg);
   }
-  return { idToken: data.idToken, refreshToken: data.refreshToken, expiresAt: Date.now() + (Number(data.expiresIn) || 3600) * 1000 - 60000, localId: data.localId };
+  return data;
+}
+
+function authFromTokens(idToken, refreshToken, expiresIn) {
+  return { idToken, refreshToken, expiresAt: Date.now() + (Number(expiresIn) || 3600) * 1000 - 60000 };
+}
+
+// Decodeert de UID uit een idToken-JWT (payload.user_id / sub) zonder te
+// vertrouwen op los meegestuurde velden.
+function decodeJwtUid(idToken) {
+  try {
+    const part = idToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(decodeURIComponent(escape(atob(part))));
+    return payload.user_id || payload.sub || null;
+  } catch (e) { return null; }
+}
+
+const IDTK_V2 = "https://identitytoolkit.googleapis.com/v2";
+
+async function mfaCall(path, body) {
+  const res = await fetch(`${IDTK_V2}/${path}?key=${FIREBASE_CONFIG.apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const msg = (data && data.error && data.error.message) || ("status " + res.status);
+    throw Object.assign(new Error(msg), { code: msg });
+  }
+  return data;
+}
+
+// TOTP-enrollment (eenmalige koppeling van een authenticator-app).
+async function mfaEnrollStart(idToken) {
+  const data = await mfaCall("accounts/mfaEnrollment:start", { idToken, totpEnrollmentInfo: {} });
+  return data.totpSessionInfo; // { sharedSecretKey, sessionInfo, periodSec, verificationCodeLength, ... }
+}
+async function mfaEnrollFinalize(idToken, sessionInfo, verificationCode) {
+  return mfaCall("accounts/mfaEnrollment:finalize", {
+    idToken, displayName: "Authenticator app",
+    totpVerificationInfo: { sessionInfo, verificationCode }
+  });
+}
+// TOTP-sign-in: wisselt de pending-credential + code in voor een echt idToken.
+async function mfaSignInFinalize(mfaPendingCredential, mfaEnrollmentId, verificationCode) {
+  return mfaCall("accounts/mfaSignIn:finalize", {
+    mfaPendingCredential, mfaEnrollmentId,
+    totpVerificationInfo: { verificationCode }
+  });
 }
 
 async function fbRefreshToken(refreshToken) {
@@ -746,49 +807,15 @@ function gateSetError(msg) {
   if (el) el.textContent = msg || "";
 }
 
-function base32Decode(base32) {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  let bits = "";
-  for (const char of base32.replace(/=+$/, "").toUpperCase()) {
-    const val = alphabet.indexOf(char);
-    if (val === -1) continue;
-    bits += val.toString(2).padStart(5, "0");
-  }
-  const bytes = [];
-  for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.substr(i, 8), 2));
-  return new Uint8Array(bytes);
-}
+// Tijdelijke context tussen de auth-stappen (alleen in geheugen).
+let pendingMfa = null;    // { mfaPendingCredential, mfaEnrollmentId } — sign-in wacht op TOTP
+let enrollCtx = null;     // { idToken, sessionInfo, secret } — enrollment loopt
 
-async function totpCodeAt(secretBase32, counter) {
-  const keyBytes = base32Decode(secretBase32);
-  const buf = new ArrayBuffer(8);
-  const view = new DataView(buf);
-  view.setUint32(0, Math.floor(counter / 0x100000000), false);
-  view.setUint32(4, counter >>> 0, false);
-  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
-  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, buf));
-  const offset = sig[sig.length - 1] & 0x0f;
-  const binCode = ((sig[offset] & 0x7f) << 24) | ((sig[offset + 1] & 0xff) << 16) | ((sig[offset + 2] & 0xff) << 8) | (sig[offset + 3] & 0xff);
-  return (binCode % 1000000).toString().padStart(6, "0");
-}
-
-async function verifyTotpCode(secretBase32, userCode) {
-  const clean = (userCode || "").trim();
-  if (!/^[0-9]{6}$/.test(clean)) return false;
-  const step = 30;
-  const counter = Math.floor(Date.now() / 1000 / step);
-  for (let w = -1; w <= 1; w++) {
-    const code = await totpCodeAt(secretBase32, counter + w);
-    if (code === clean) return true;
-  }
-  return false;
-}
-
-async function fetchTotpSecret(idToken) {
-  const res = await fetch(`${FS_BASE}/authConfig/mfa`, { headers: { "Authorization": "Bearer " + idToken } });
-  if (!res.ok) throw new Error("Kan 2FA-configuratie niet ophalen (status " + res.status + ")");
-  const data = await res.json();
-  return fromFsFields(data.fields).secret;
+function gateShowStep(step) {
+  ["step-password", "step-totp", "step-enroll"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = id === step ? "block" : "none";
+  });
 }
 
 function unlockDashboard() {
@@ -799,6 +826,14 @@ function unlockDashboard() {
   fbInit();
 }
 
+// Zet een geldig, MFA-geverifieerd token als sessie en open het dashboard —
+// mits het écht het eigenaar-account is.
+function finishLogin(idToken, refreshToken, expiresIn) {
+  if (decodeJwtUid(idToken) !== OWNER_UID) throw new Error("Dit account heeft geen toegang.");
+  fbAuth = authFromTokens(idToken, refreshToken, expiresIn);
+  unlockDashboard();
+}
+
 on("auth-login-btn", "click", async () => {
   const email = (document.getElementById("auth-email")?.value || "").trim();
   const password = document.getElementById("auth-password")?.value || "";
@@ -806,31 +841,85 @@ on("auth-login-btn", "click", async () => {
   const btn = document.getElementById("auth-login-btn");
   btn.disabled = true; btn.textContent = "Bezig...";
   try {
-    const auth = await fbSignInWithPassword(email, password);
-    if (auth.localId !== OWNER_UID) {
-      throw new Error("Dit account heeft geen toegang.");
+    const data = await fbSignInRaw(email, password);
+
+    if (data.mfaPendingCredential) {
+      // MFA is ingeschakeld en gekoppeld: Google eist nu de TOTP-code.
+      const info = (data.mfaInfo || [])[0] || {};
+      pendingMfa = { mfaPendingCredential: data.mfaPendingCredential, mfaEnrollmentId: info.mfaEnrollmentId };
+      gateShowStep("step-totp");
+      document.getElementById("auth-totp")?.focus();
+    } else if (data.idToken) {
+      // Nog geen tweede factor gekoppeld. Controleer eigenaar en dwing
+      // eenmalige enrollment af vóór toegang.
+      if (decodeJwtUid(data.idToken) !== OWNER_UID) throw new Error("Dit account heeft geen toegang.");
+      await beginEnrollment(data.idToken);
+    } else {
+      throw new Error("Onverwacht antwoord van de server.");
     }
-    fbAuth = auth;
-    document.getElementById("step-password").style.display = "none";
-    document.getElementById("step-totp").style.display = "block";
-    document.getElementById("auth-totp")?.focus();
   } catch (e) {
-    gateSetError("Onjuiste inloggegevens.");
+    const m = String(e && e.message || "");
+    if (/PASSWORD|EMAIL|INVALID_LOGIN|credential/i.test(m)) gateSetError("Onjuiste inloggegevens.");
+    else gateSetError(m || "Inloggen mislukt.");
   } finally {
     btn.disabled = false; btn.textContent = "Inloggen";
   }
 });
 
-on("auth-totp-btn", "click", async () => {
-  const code = document.getElementById("auth-totp")?.value || "";
+// Start TOTP-enrollment: vraag een geheim aan bij Google en toon de setup-key.
+async function beginEnrollment(idToken) {
+  try {
+    const s = await mfaEnrollStart(idToken);
+    enrollCtx = { idToken, sessionInfo: s.sessionInfo, secret: s.sharedSecretKey };
+    const email = (document.getElementById("auth-email")?.value || "").trim();
+    const grouped = (s.sharedSecretKey.match(/.{1,4}/g) || [s.sharedSecretKey]).join(" ");
+    const otpauth = `otpauth://totp/${encodeURIComponent("Mo Pro Max")}:${encodeURIComponent(email)}?secret=${s.sharedSecretKey}&issuer=${encodeURIComponent("Mo Pro Max")}&algorithm=SHA1&digits=6&period=30`;
+    const box = document.getElementById("enroll-secret");
+    if (box) box.textContent = grouped;
+    const link = document.getElementById("enroll-otpauth");
+    if (link) { link.href = otpauth; link.textContent = "otpauth-link openen"; }
+    gateShowStep("step-enroll");
+    document.getElementById("enroll-code")?.focus();
+  } catch (e) {
+    const m = String(e && e.message || "");
+    // MFA niet ingeschakeld in de Firebase-console → duidelijke uitleg tonen.
+    if (/OPERATION_NOT_ALLOWED|not enabled|MFA|MULTI_FACTOR|SECOND_FACTOR/i.test(m)) {
+      gateSetError("Tweestapsverificatie staat nog niet aan in de Firebase-console. Schakel TOTP-MFA in bij Authentication → Sign-in method → Advanced.");
+    } else {
+      gateSetError(m || "Kan tweestapsverificatie niet starten.");
+    }
+    gateShowStep("step-password");
+  }
+}
+
+on("enroll-confirm-btn", "click", async () => {
+  const code = (document.getElementById("enroll-code")?.value || "").trim();
   gateSetError("");
+  if (!/^[0-9]{6}$/.test(code)) { gateSetError("Vul de 6-cijferige code uit je app in."); return; }
+  const btn = document.getElementById("enroll-confirm-btn");
+  btn.disabled = true; btn.textContent = "Bezig...";
+  try {
+    const r = await mfaEnrollFinalize(enrollCtx.idToken, enrollCtx.sessionInfo, code);
+    enrollCtx = null;
+    // Enrollment geeft direct verse, MFA-gedekte tokens terug.
+    finishLogin(r.idToken, r.refreshToken, r.expiresIn || 3600);
+  } catch (e) {
+    gateSetError("Onjuiste code. Controleer de tijd op je telefoon en probeer opnieuw.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Koppelen en inloggen";
+  }
+});
+
+on("auth-totp-btn", "click", async () => {
+  const code = (document.getElementById("auth-totp")?.value || "").trim();
+  gateSetError("");
+  if (!/^[0-9]{6}$/.test(code)) { gateSetError("Vul de 6-cijferige code in."); return; }
   const btn = document.getElementById("auth-totp-btn");
   btn.disabled = true; btn.textContent = "Bezig...";
   try {
-    const secret = await fetchTotpSecret(fbAuth.idToken);
-    const ok = await verifyTotpCode(secret, code);
-    if (!ok) throw new Error("bad code");
-    unlockDashboard();
+    const r = await mfaSignInFinalize(pendingMfa.mfaPendingCredential, pendingMfa.mfaEnrollmentId, code);
+    pendingMfa = null;
+    finishLogin(r.idToken, r.refreshToken, r.expiresIn || 3600);
   } catch (e) {
     gateSetError("Onjuiste 2FA-code. Probeer opnieuw.");
   } finally {
@@ -843,6 +932,9 @@ document.getElementById("auth-password")?.addEventListener("keydown", (e) => {
 });
 document.getElementById("auth-totp")?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") document.getElementById("auth-totp-btn")?.click();
+});
+document.getElementById("enroll-code")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("enroll-confirm-btn")?.click();
 });
 
 /* ---- Firestore REST <-> plain JS waarden ---- */
