@@ -194,6 +194,37 @@
   th.sortable { cursor: pointer; user-select: none; }
   th.sortable:hover { color: #14151a; }
 
+  /* ---------- Salescall / behoefteanalyse ---------- */
+  .sc-backdrop { display: none; position: fixed; inset: 0; background: rgba(20,21,26,0.55); z-index: 400; }
+  .sc-backdrop.open { display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 24px 12px; }
+  .sc-modal { background: #f5f5f7; border-radius: 16px; width: 880px; max-width: 96vw; margin: auto; box-shadow: 0 24px 70px rgba(0,0,0,0.3); }
+  .sc-head { position: sticky; top: 0; background: #14151a; color: #fff; border-radius: 16px 16px 0 0; padding: 15px 22px; display: flex; justify-content: space-between; align-items: center; gap: 12px; z-index: 2; }
+  .sc-head h2 { margin: 0; font-size: 16px; }
+  .sc-head .sub { color: #a8a9b8; font-size: 12px; margin-top: 2px; }
+  .sc-close { background: rgba(255,255,255,0.12); border: none; color: #fff; width: 30px; height: 30px; border-radius: 8px; font-size: 18px; cursor: pointer; flex-shrink: 0; }
+  .sc-body { padding: 18px 22px; }
+  .sc-sec { background: #fff; border: 1px solid #e6e5eb; border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+  .sc-sec > h3 { margin: 0 0 4px; font-size: 14px; }
+  .sc-guide { background: #f0f3ff; border-left: 3px solid #6366f1; border-radius: 6px; padding: 8px 12px; margin: 8px 0 14px; font-size: 12px; color: #43455a; line-height: 1.5; }
+  .sc-guide ul { margin: 5px 0 0; padding-left: 18px; }
+  .sc-guide li { margin-bottom: 3px; }
+  .sc-q { margin-bottom: 12px; }
+  .sc-q > label { display: block; font-size: 12.5px; font-weight: 600; color: #2a2b33; margin-bottom: 4px; }
+  .sc-q .hint2 { font-weight: 400; color: #8a8a96; font-size: 11.5px; }
+  .sc-q textarea, .sc-q input, .sc-q select { width: 100%; padding: 8px 10px; border: 1px solid #d9d8e0; border-radius: 7px; font-size: 13px; font-family: inherit; background: #fff; }
+  .sc-q textarea { min-height: 44px; resize: vertical; }
+  .sc-svc-group { margin-bottom: 12px; }
+  .sc-svc-group > .g { font-size: 12px; font-weight: 700; color: #4f46e5; margin-bottom: 6px; }
+  .sc-svc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+  .sc-svc-grid label { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: #2a2b33; cursor: pointer; }
+  .sc-svc-grid input { margin-top: 2px; }
+  .sc-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .sc-callback { background: #fffdf6; border: 1px solid #eee7d0; border-radius: 10px; padding: 12px 14px; }
+  .sc-agreement { white-space: pre-wrap; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: #0f1115; color: #e6e6ea; border-radius: 10px; padding: 14px; max-height: 340px; overflow: auto; }
+  .sc-foot { position: sticky; bottom: 0; background: #f5f5f7; border-top: 1px solid #e6e5eb; border-radius: 0 0 16px 16px; padding: 12px 22px; display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+  .sc-foot .status { margin-right: auto; font-size: 11.5px; color: #8a8a96; }
+  @media (max-width: 760px) { .sc-svc-grid { grid-template-columns: 1fr; } .sc-row2 { grid-template-columns: 1fr; } }
+
   /* ---------- Responsief (mobiel) ---------- */
   .table-scroll { overflow-x: auto; }
   @media (max-width: 760px) {
@@ -584,6 +615,25 @@
         <button type="submit" class="btn">Opslaan</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ===================== SALESCALL / BEHOEFTEANALYSE ===================== -->
+<div class="sc-backdrop" id="salescall-backdrop">
+  <div class="sc-modal">
+    <div class="sc-head">
+      <div>
+        <h2 id="sc-title">Salescall</h2>
+        <div class="sub" id="sc-subtitle"></div>
+      </div>
+      <button class="sc-close" id="sc-close" type="button">&times;</button>
+    </div>
+    <div class="sc-body" id="salescall-body"></div>
+    <div class="sc-foot">
+      <span class="status" id="sc-status"></span>
+      <button class="btn secondary" id="sc-close-2" type="button">Sluiten</button>
+      <button class="btn" id="sc-generate" type="button">Genereer functionaliteitenovereenkomst</button>
+    </div>
   </div>
 </div>
 
@@ -1434,6 +1484,7 @@ function openNodePanel(nodeId) {
             <div class="meta">${esc(d.branche || "")}${d.contact ? " · " + esc(d.contact) : ""}</div>
           </div>
           <div style="display:flex; gap:5px;">
+            <button class="btn small sc-open-btn" data-id="${esc(d.id)}">📞 Salescall</button>
             <button class="btn secondary small edit-deal-btn" data-id="${esc(d.id)}">Bewerken</button>
             <button class="btn danger small delete-deal-card-btn" data-id="${esc(d.id)}" title="Deal verwijderen">&times;</button>
           </div>
@@ -1465,6 +1516,9 @@ function openNodePanel(nodeId) {
 
     body.querySelectorAll(".edit-deal-btn").forEach(btn => {
       btn.addEventListener("click", () => openDealModal(btn.dataset.id));
+    });
+    body.querySelectorAll(".sc-open-btn").forEach(btn => {
+      btn.addEventListener("click", () => openSalescall(btn.dataset.id));
     });
     body.querySelectorAll(".delete-deal-card-btn").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -1942,6 +1996,7 @@ function renderDealsTable() {
       <td>${age != null ? `<span class="stage-age ${stale ? "stale" : ""}">${age} d.</span>` : "—"}</td>
       <td>${d.followUpAt ? `<span class="stage-age ${overdue ? "overdue" : ""}">${fmtDate(d.followUpAt)}</span>` : "—"}</td>
       <td style="white-space:nowrap;">
+        <button class="btn small deal-sc-btn" data-id="${esc(d.id)}" title="Salescall / behoefteanalyse">📞</button>
         <button class="btn secondary small deal-open-btn" data-node="${d.node}">Open</button>
         <button class="btn secondary small deal-edit-btn" data-id="${esc(d.id)}">Bewerken</button>
       </td>
@@ -1952,6 +2007,8 @@ function renderDealsTable() {
     btn.addEventListener("click", () => openNodePanel(Number(btn.dataset.node))));
   tbody.querySelectorAll(".deal-edit-btn").forEach(btn =>
     btn.addEventListener("click", () => openDealModal(btn.dataset.id)));
+  tbody.querySelectorAll(".deal-sc-btn").forEach(btn =>
+    btn.addEventListener("click", () => openSalescall(btn.dataset.id)));
 }
 
 on("d-search", "input", debounce(renderDealsTable, 200));
@@ -2012,6 +2069,322 @@ on("export-leads-btn", "click", () => {
     ["Bedrijf", "Branche", "Regio", "Adres", "Cijfer", "Reviews", "Telefoon"],
     rows);
 });
+
+/* =========================================================================
+   SALESCALL / BEHOEFTEANALYSE — uniform belscript per lead, opslag in Firebase.
+   Elke agent doorloopt exact dezelfde stappen en verzamelt dezelfde velden.
+   Diensten komen 1-op-1 van mopromax.com (de vier pijlers).
+   ========================================================================= */
+const SERVICE_GROUPS = [
+  { group: "Branding & Huisstijl", items: [
+    "Uniek logo op maat", "Kleurenpalet & typografie", "Merk stijlgids",
+    "Social media kit", "Originele merkteksten"] },
+  { group: "Website Ontwerp & Bouw", items: [
+    "100% op maat ontwerp", "Mobiel-first & supersnel", "Originele websiteteksten",
+    "Contactformulier + Google Maps", "Meertalige website"] },
+  { group: "Techniek & Functionaliteit", items: [
+    "Online boekingssysteem & agenda", "Webshop (iDEAL, creditcard, Apple Pay)",
+    "Klantenportaal", "Chatbot & live chat", "E-mailmarketing & automatische reviews",
+    "Koppeling met boekhouding & tools"] },
+  { group: "SEO · Vindbaarheid", items: [
+    "Google Business instellen & optimaliseren", "Zichtbaarheid op Google Maps",
+    "Hogere zoekposities (SEO)", "Review-strategie", "Maandelijkse rapportage"] }
+];
+
+const CALL_SECTIONS = [
+  {
+    title: "1 · Opening & binding",
+    guideTitle: "Zo open je",
+    guide: [
+      "Glimlach hoorbaar en gebruik meteen de naam van de klant.",
+      "Geef een oprecht, specifiek compliment — hun zaak, hun reviews, hun werk.",
+      "Vraag toestemming: \"Heb je 2 minuten? Ik wil kijken of ik jullie online beter vindbaar kan maken.\"",
+      "Doel: de klant op zijn gemak stellen zodat je gericht vragen mag stellen. Nog niet pitchen."
+    ],
+    questions: [
+      { key: "contact", type: "input", internal: true, label: "Met wie spreek je? (naam + rol)" },
+      { key: "sfeer", type: "textarea", internal: true, label: "Eerste indruk / sfeer van het gesprek", placeholder: "open, gehaast, sceptisch, enthousiast..." },
+      { key: "toestemming", type: "check", label: "Klant staat open voor een paar vragen" }
+    ]
+  },
+  {
+    title: "2 · Situatie nu",
+    guideTitle: "Luister, vat samen, oordeel niet",
+    guide: [
+      "Laat de klant praten en noteer. Herhaal kort wat je hoort (\"dus als ik je goed begrijp...\").",
+      "Zoek naar: hebben ze al een website, hoe vindbaar zijn ze, hoe komen klanten binnen?"
+    ],
+    questions: [
+      { key: "kernactiviteit", type: "textarea", short: "Kernactiviteit", label: "Wat doet het bedrijf precies? Wat maakt hen bijzonder?" },
+      { key: "huidige_site", type: "textarea", short: "Huidige online aanwezigheid", label: "Hebben ze nu een website / online aanwezigheid? Wat werkt wel en niet?" },
+      { key: "vindbaarheid_nu", type: "textarea", short: "Vindbaarheid nu", label: "Als iemand ze op Google zoekt — wat vindt die nu?" },
+      { key: "klantenstroom", type: "textarea", short: "Klantenstroom", label: "Hoe komen de meeste klanten nu binnen?", placeholder: "mond-tot-mond, socials, Google, loop..." }
+    ]
+  },
+  {
+    title: "3 · Behoefte & pijn",
+    guideTitle: "Vind de pijn — koppel aan online aanwezigheid, vindbaarheid, automatisatie en gemak",
+    guide: [
+      "Zoek waar tijd, geld of klanten weglekken; dat is je haakje.",
+      "Koppel elke pijn aan een oplossing: minder gedoe (automatisatie), meer klanten (vindbaarheid), professioneler (design)."
+    ],
+    questions: [
+      { key: "pijn", type: "textarea", short: "Grootste pijn", label: "Wat kost nu het meeste tijd, gedoe of frustratie?" },
+      { key: "automatisatie", type: "textarea", short: "Automatisatie-kans", label: "Wat zou het schelen als klanten zelf online boeken / bestellen / aanvragen?" },
+      { key: "doel", type: "textarea", short: "Doelstelling", label: "Waar wil het bedrijf over 6–12 maanden staan?" },
+      { key: "voorbeelden", type: "textarea", short: "Referenties / concurrenten", label: "Zijn er websites of concurrenten die ze goed vinden?" }
+    ]
+  }
+];
+
+const SC_PAKKET_OPTS = [
+  ["Starter|199", "Starter — €199"], ["Pro|349", "Pro — €349"],
+  ["Pro Max|849", "Pro Max — €849"], ["Custom|0", "Custom — op aanvraag"]
+];
+const SC_ONDERHOUD_OPTS = [["0", "Geen"], ["19", "Basis — €19/mnd"], ["35", "Priority — €35/mnd"]];
+
+let scDealId = null;
+
+function scKey(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""); }
+function scFmtDateTime(v) { const d = new Date(v); return isNaN(d) ? String(v || "") : d.toLocaleString("nl-NL", { dateStyle: "short", timeStyle: "short" }); }
+
+function ensureSalescall(deal) {
+  if (!deal.salescall) deal.salescall = { answers: {}, services: {}, startedAt: new Date().toISOString() };
+  if (!deal.salescall.answers) deal.salescall.answers = {};
+  if (!deal.salescall.services) deal.salescall.services = {};
+  return deal.salescall;
+}
+
+function scSetStatus(t) { const el = document.getElementById("sc-status"); if (el) el.textContent = t; }
+
+function saveSalescall() {
+  const deal = state.deals.find(d => d.id === scDealId);
+  if (!deal) return;
+  const now = new Date().toISOString();
+  deal.salescall.updatedAt = now;
+  deal.updatedAt = now;
+  saveState();
+  scSetStatus("Opgeslagen " + new Date().toLocaleTimeString("nl-NL"));
+}
+const saveSalescallDebounced = debounce(saveSalescall, 500);
+
+function syncServicesToDeal(deal) {
+  const svc = deal.salescall.services || {};
+  const anyIn = groupName => {
+    const g = SERVICE_GROUPS.find(x => x.group === groupName);
+    return g ? g.items.some(it => svc[scKey(groupName + " " + it)]) : false;
+  };
+  deal.branding = anyIn("Branding & Huisstijl");
+  deal.techniek = anyIn("Techniek & Functionaliteit");
+  deal.seo = anyIn("SEO · Vindbaarheid");
+}
+
+function openSalescall(dealId) {
+  const deal = state.deals.find(d => d.id === dealId);
+  if (!deal) return;
+  scDealId = dealId;
+  ensureSalescall(deal);
+  document.getElementById("sc-title").textContent = "Salescall — " + deal.naam;
+  document.getElementById("sc-subtitle").textContent = [deal.branche, deal.telefoon].filter(Boolean).join(" · ");
+  scSetStatus("");
+  renderSalescallBody(deal);
+  document.getElementById("salescall-backdrop").classList.add("open");
+}
+function closeSalescall() {
+  document.getElementById("salescall-backdrop").classList.remove("open");
+  scDealId = null;
+}
+
+function renderSalescallBody(deal) {
+  const sc = ensureSalescall(deal);
+  const body = document.getElementById("salescall-body");
+  let html = "";
+
+  CALL_SECTIONS.forEach(sec => {
+    html += `<div class="sc-sec"><h3>${esc(sec.title)}</h3>`;
+    if (sec.guide && sec.guide.length) {
+      html += `<div class="sc-guide"><b>${esc(sec.guideTitle || "Aanpak")}:</b><ul>${sec.guide.map(g => `<li>${esc(g)}</li>`).join("")}</ul></div>`;
+    }
+    sec.questions.forEach(q => {
+      const val = sc.answers[q.key];
+      if (q.type === "check") {
+        html += `<div class="sc-q"><label style="display:flex; gap:8px; align-items:center; font-weight:600;"><input type="checkbox" class="sc-answer-check" data-key="${esc(q.key)}" ${val ? "checked" : ""}> ${esc(q.label)}</label></div>`;
+      } else if (q.type === "input") {
+        html += `<div class="sc-q"><label>${esc(q.label)}</label><input type="text" class="sc-answer" data-key="${esc(q.key)}" value="${esc(val || "")}" placeholder="${esc(q.placeholder || "")}"></div>`;
+      } else {
+        html += `<div class="sc-q"><label>${esc(q.label)}</label><textarea class="sc-answer" data-key="${esc(q.key)}" placeholder="${esc(q.placeholder || "")}">${esc(val || "")}</textarea></div>`;
+      }
+    });
+    html += `</div>`;
+  });
+
+  // Diensten (checkboxes uit mopromax.com)
+  html += `<div class="sc-sec"><h3>Diensten in de website</h3>
+    <div class="sc-guide">Vink aan wat er in de website moet. Dit vormt de basis van de functionaliteitenovereenkomst.</div>`;
+  SERVICE_GROUPS.forEach(g => {
+    html += `<div class="sc-svc-group"><div class="g">${esc(g.group)}</div><div class="sc-svc-grid">`;
+    g.items.forEach(item => {
+      const key = scKey(g.group + " " + item);
+      html += `<label><input type="checkbox" class="sc-svc" data-key="${esc(key)}" ${sc.services[key] ? "checked" : ""}> ${esc(item)}</label>`;
+    });
+    html += `</div></div>`;
+  });
+  html += `</div>`;
+
+  // Pakket & onderhoud
+  html += `<div class="sc-sec"><h3>Pakket & investering</h3><div class="sc-row2">
+      <div class="sc-q"><label>Pakket</label><select id="sc-pakket">${SC_PAKKET_OPTS.map(o => `<option value="${esc(o[0])}">${esc(o[1])}</option>`).join("")}</select></div>
+      <div class="sc-q"><label>Onderhoudscontract</label><select id="sc-onderhoud">${SC_ONDERHOUD_OPTS.map(o => `<option value="${esc(o[0])}">${esc(o[1])}</option>`).join("")}</select></div>
+    </div>
+    <div class="sc-q"><label>Budgetindruk / beslisser <span class="hint2">(intern — komt niet in de overeenkomst)</span></label><textarea class="sc-answer" data-key="budget" placeholder="wie beslist, indicatie budget, bezwaren...">${esc(sc.answers.budget || "")}</textarea></div>
+  </div>`;
+
+  // Terugbelafspraak
+  const cb = sc.callback || {};
+  html += `<div class="sc-sec"><h3>Later terugbellen</h3>
+    <div class="sc-callback">
+      <div class="sc-row2">
+        <div class="sc-q"><label>Datum &amp; tijd terugbellen</label><input type="datetime-local" id="sc-cb-when" value="${esc(cb.scheduledAt || "")}"></div>
+        <div class="sc-q"><label>&nbsp;</label><button class="btn" id="sc-cb-save" type="button" style="width:100%;">Plan terugbelafspraak</button></div>
+      </div>
+      <div class="sc-q"><label>Notitie bij de afspraak</label><textarea id="sc-cb-note" placeholder="bijv. belt liever na 17:00, wil eerst met compagnon overleggen">${esc(cb.note || "")}</textarea></div>
+      <div id="sc-cb-status" style="font-size:11.5px; color:#8a8a96;">${cb.scheduledAt ? "Gepland: " + esc(scFmtDateTime(cb.scheduledAt)) : ""}</div>
+    </div>
+  </div>`;
+
+  body.innerHTML = html;
+  if (sc.agreement) showAgreement(deal, sc.agreement);
+
+  const pakketSel = document.getElementById("sc-pakket");
+  const onderhoudSel = document.getElementById("sc-onderhoud");
+  pakketSel.value = deal.pakketKey || "Starter|199";
+  onderhoudSel.value = String(deal.onderhoud || 0);
+
+  body.querySelectorAll(".sc-answer").forEach(el => {
+    el.addEventListener("input", () => { sc.answers[el.dataset.key] = el.value; saveSalescallDebounced(); });
+  });
+  body.querySelectorAll(".sc-answer-check").forEach(el => {
+    el.addEventListener("change", () => { sc.answers[el.dataset.key] = el.checked; saveSalescallDebounced(); });
+  });
+  body.querySelectorAll(".sc-svc").forEach(el => {
+    el.addEventListener("change", () => { sc.services[el.dataset.key] = el.checked; syncServicesToDeal(deal); saveSalescallDebounced(); });
+  });
+  pakketSel.addEventListener("change", e => {
+    const [naam, prijs] = e.target.value.split("|");
+    deal.pakketKey = e.target.value; deal.pakket = naam;
+    if (!Number(deal.waarde)) deal.waarde = Number(prijs) || 0;
+    saveSalescallDebounced(); renderSummary();
+  });
+  onderhoudSel.addEventListener("change", e => {
+    deal.onderhoud = Number(e.target.value) || 0;
+    saveSalescallDebounced(); renderSummary();
+  });
+  document.getElementById("sc-cb-save").addEventListener("click", () => scheduleCallback(deal));
+}
+
+// Terugbelafspraak: koppelt aan de bestaande opvolg-reminder + activiteitenlog.
+function scheduleCallback(deal) {
+  const when = document.getElementById("sc-cb-when").value;
+  const note = (document.getElementById("sc-cb-note").value || "").trim();
+  const statusEl = document.getElementById("sc-cb-status");
+  if (!when) { if (statusEl) statusEl.textContent = "Kies eerst een datum en tijd."; return; }
+  const sc = ensureSalescall(deal);
+  sc.callback = { scheduledAt: when, note, createdAt: new Date().toISOString() };
+  deal.followUpAt = when.slice(0, 10);
+  if (!Array.isArray(deal.activiteiten)) deal.activiteiten = [];
+  deal.activiteiten.push({ at: new Date().toISOString(), type: "Terugbelafspraak", text: "Gepland op " + scFmtDateTime(when) + (note ? " — " + note : "") });
+  saveSalescall();
+  if (statusEl) statusEl.textContent = "Gepland: " + scFmtDateTime(when);
+  renderAll();
+}
+
+function buildAgreement(deal) {
+  const sc = ensureSalescall(deal);
+  const [pkgNaam, pkgPrijs] = (deal.pakketKey || "Starter|199").split("|");
+  const L = [];
+  L.push("MO PRO MAX — FUNCTIONALITEITENOVEREENKOMST");
+  L.push("=".repeat(50));
+  L.push("Bedrijf   : " + (deal.naam || ""));
+  if (deal.contact) L.push("Contact   : " + deal.contact);
+  if (deal.telefoon) L.push("Telefoon  : " + deal.telefoon);
+  if (deal.email) L.push("E-mail    : " + deal.email);
+  L.push("Datum     : " + new Date().toLocaleDateString("nl-NL"));
+  L.push("");
+  L.push("BEHOEFTE & DOELSTELLING");
+  L.push("-".repeat(50));
+  let anyNeed = false;
+  CALL_SECTIONS.forEach(sec => sec.questions.forEach(q => {
+    if (q.type === "check" || q.internal) return;
+    const a = String(sc.answers[q.key] || "").trim();
+    if (a) { L.push("• " + (q.short || q.label) + ": " + a); anyNeed = true; }
+  }));
+  if (!anyNeed) L.push("(nog niet ingevuld)");
+  L.push("");
+  L.push("OVEREENGEKOMEN FUNCTIONALITEITEN");
+  L.push("-".repeat(50));
+  let anySvc = false;
+  SERVICE_GROUPS.forEach(g => {
+    const items = g.items.filter(it => sc.services[scKey(g.group + " " + it)]);
+    if (items.length) { anySvc = true; L.push(g.group + ":"); items.forEach(it => L.push("   [x] " + it)); }
+  });
+  if (!anySvc) L.push("(nog geen diensten aangevinkt)");
+  L.push("");
+  L.push("PAKKET & INVESTERING");
+  L.push("-".repeat(50));
+  L.push("Pakket    : " + pkgNaam + (Number(pkgPrijs) ? " — €" + pkgPrijs : " — op aanvraag"));
+  if (Number(deal.onderhoud)) L.push("Onderhoud : €" + deal.onderhoud + "/mnd");
+  if (Number(deal.waarde)) L.push("Eenmalig  : €" + deal.waarde);
+  L.push("");
+  L.push("Deze overeenkomst vat de besproken behoefte en gekozen functionaliteiten");
+  L.push("samen. Prijzen zijn indicatief tot definitief akkoord.");
+  L.push("");
+  L.push("Akkoord klant: ____________________    Datum: ____________");
+  return L.join("\n");
+}
+
+function downloadText(filename, text) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
+function showAgreement(deal, text) {
+  const body = document.getElementById("salescall-body");
+  let wrap = document.getElementById("sc-agreement-wrap");
+  if (!wrap) { wrap = document.createElement("div"); wrap.id = "sc-agreement-wrap"; wrap.className = "sc-sec"; body.appendChild(wrap); }
+  wrap.innerHTML = `<h3>Functionaliteitenovereenkomst</h3>
+    <pre class="sc-agreement">${esc(text)}</pre>
+    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+      <button class="btn secondary" id="sc-copy" type="button">Kopieer</button>
+      <button class="btn secondary" id="sc-download" type="button">Download .txt</button>
+    </div>`;
+  document.getElementById("sc-copy").addEventListener("click", () => {
+    navigator.clipboard?.writeText(text).then(() => scSetStatus("Overeenkomst gekopieerd")).catch(() => {});
+  });
+  document.getElementById("sc-download").addEventListener("click", () => {
+    downloadText((deal.naam || "overeenkomst").replace(/[^\w-]+/g, "_") + "-overeenkomst.txt", text);
+  });
+}
+
+function generateAgreement() {
+  const deal = state.deals.find(d => d.id === scDealId);
+  if (!deal) return;
+  const sc = ensureSalescall(deal);
+  const text = buildAgreement(deal);
+  sc.agreement = text;
+  sc.agreementGeneratedAt = new Date().toISOString();
+  saveSalescall();
+  showAgreement(deal, text);
+  document.getElementById("sc-agreement-wrap")?.scrollIntoView({ behavior: "smooth" });
+}
+
+on("sc-close", "click", closeSalescall);
+on("sc-close-2", "click", closeSalescall);
+on("sc-generate", "click", generateAgreement);
+on("salescall-backdrop", "click", e => { if (e.target.id === "salescall-backdrop") closeSalescall(); });
 
 try {
   populateDealNodeFilter();
