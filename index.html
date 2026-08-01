@@ -221,7 +221,7 @@
   .sc-svc-grid input { margin-top: 2px; }
   .sc-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .sc-callback { background: #fffdf6; border: 1px solid #eee7d0; border-radius: 10px; padding: 12px 14px; }
-  .sc-agreement { white-space: pre-wrap; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: #0f1115; color: #e6e6ea; border-radius: 10px; padding: 14px; max-height: 340px; overflow: auto; }
+  .sc-agreement { display: block; width: 100%; box-sizing: border-box; white-space: pre-wrap; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: #0f1115; color: #e6e6ea; border: 1px solid #2a2c33; border-radius: 10px; padding: 14px; min-height: 260px; max-height: 480px; overflow: auto; resize: vertical; }
   .sc-foot { position: sticky; bottom: 0; background: #f5f5f7; border-top: 1px solid #e6e5eb; border-radius: 0 0 16px 16px; padding: 12px 22px; display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
   .sc-foot .status { margin-right: auto; font-size: 11.5px; color: #8a8a96; }
   @media (max-width: 760px) { .sc-svc-grid { grid-template-columns: 1fr; } .sc-row2 { grid-template-columns: 1fr; } }
@@ -2139,6 +2139,21 @@ const SERVICE_GROUPS = [
     "Hogere zoekposities (SEO)", "Review-strategie", "Maandelijkse rapportage"] }
 ];
 
+// Vertaalt elke dienst-checkbox naar de exacte modules.<key> in config_main.json
+// van het saas-platform (zie immersive-frontend-skill) — dit is de brug tussen
+// wat de klant aanvinkt en wat er straks in de site geconfigureerd wordt.
+// Geen vermelding = geen directe module-toggle (puur ontwerp/copy/extern werk).
+const SERVICE_MODULE_MAP = {
+  "website_ontwerp_bouw_contactformulier_google_maps": "modules.leads",
+  "techniek_functionaliteit_online_boekingssysteem_agenda": "modules.bookings",
+  "techniek_functionaliteit_webshop_ideal_creditcard_apple_pay": "modules.shop",
+  "techniek_functionaliteit_klantenportaal": "portal (klant-account bij shop/bookings)",
+  "techniek_functionaliteit_chatbot_live_chat": "modules.chatbot + modules.chat",
+  "techniek_functionaliteit_e_mailmarketing_automatische_reviews": "modules.email + modules.reviews",
+  "techniek_functionaliteit_koppeling_met_boekhouding_tools": "modules.accounting",
+  "seo_vindbaarheid_review_strategie": "modules.reviews"
+};
+
 // Behoefteanalyse-script. Elk blok = een fase in de call. `sec` bepaalt onder
 // welke kop het antwoord in de functionaliteitenovereenkomst belandt; `internal`
 // blijft intern (niet in de overeenkomst). Structuur volgt de standaard
@@ -2172,7 +2187,10 @@ const CALL_SECTIONS = [
       { key: "kernactiviteit", type: "textarea", sec: "bedrijf", short: "Kernactiviteit & USP", label: "Wat doet het bedrijf precies? Wat maakt hen uniek?" },
       { key: "doelgroep", type: "textarea", sec: "bedrijf", short: "Doelgroep", label: "Wie zijn de klanten?", placeholder: "particulier/zakelijk, leeftijd, type klant" },
       { key: "werkgebied", type: "input", sec: "bedrijf", short: "Werkgebied", label: "In welke plaats(en) / regio werken ze?", hint: "belangrijk voor lokale vindbaarheid" },
-      { key: "concurrenten", type: "textarea", sec: "bedrijf", short: "Concurrenten", label: "Wie zijn de concurrenten en wat vinden ze daarvan?" }
+      { key: "concurrenten", type: "textarea", sec: "bedrijf", short: "Concurrenten", label: "Wie zijn de concurrenten en wat vinden ze daarvan?" },
+      { key: "bedrijf_email", type: "input", sec: "bedrijf", short: "Zakelijk e-mailadres", label: "Wat is het zakelijke e-mailadres voor op de website?", hint: "publiek adres, niet per se het adres van deze contactpersoon", placeholder: "info@bedrijfsnaam.nl" },
+      { key: "bedrijf_adres", type: "input", sec: "bedrijf", short: "Bezoekadres", label: "Wat is het bezoekadres voor op de website?", placeholder: "Straatnaam 1, 1234 AB Plaats" },
+      { key: "openingstijden", type: "textarea", sec: "bedrijf", short: "Openingstijden", label: "Wat zijn de openingstijden?", hint: "verplicht voor de site — noteer per dag, of \"gesloten\" waar van toepassing", placeholder: "Ma gesloten, Di–Vr 09:00–18:00, Za 09:00–17:00, Zo gesloten" }
     ]
   },
   {
@@ -2231,6 +2249,7 @@ const CALL_SECTIONS = [
       { key: "content_beeld", type: "select", sec: "content", short: "Beeldmateriaal", label: "Wie levert foto's / beeld?", options: ["", "Klant levert foto's", "Stockbeeld", "Fotoshoot nodig"] },
       { key: "content_toon", type: "input", sec: "content", short: "Tone of voice", label: "Welke toon past bij het merk?", placeholder: "formeel, informeel, speels, deskundig..." },
       { key: "logo_huisstijl", type: "select", sec: "content", short: "Logo & huisstijl", label: "Status logo & huisstijl?", options: ["", "Bestaat al", "Moet gemaakt worden", "Opfrissen"] },
+      { key: "logo_link", type: "input", sec: "content", short: "Logo/beeldmateriaal link", label: "Link naar logo/huisstijlbestanden of foto's (indien beschikbaar)", hint: "bv. een Google Drive/WeTransfer-link — alleen relevant als \"Bestaat al\" hierboven", placeholder: "https://..." },
       { key: "talen", type: "input", sec: "content", short: "Talen", label: "In welke ta(a)l(en)?", placeholder: "NL, EN, ..." }
     ]
   },
@@ -2260,8 +2279,10 @@ const CALL_SECTIONS = [
     questions: [
       { key: "drie_woorden", type: "input", sec: "design", short: "Uitstraling in 3 woorden", label: "Welke 3 woorden beschrijven de gewenste uitstraling?", placeholder: "modern, warm, luxe, strak, speels..." },
       { key: "stijl", type: "textarea", sec: "design", short: "Stijlvoorkeuren", label: "Verdere stijlvoorkeuren of wensen?" },
-      { key: "kleuren", type: "input", sec: "design", short: "Kleurvoorkeur", label: "Kleurvoorkeuren / bestaande merkkleuren" },
-      { key: "referenties", type: "textarea", sec: "design", short: "Referenties (mooi)", label: "Websites die ze mooi vinden (met waarom)" },
+      { key: "kleuren", type: "input", sec: "design", short: "Kleurvoorkeur", label: "Kleurvoorkeuren / bestaande merkkleuren", hint: "vraag actief door — dit bepaalt het hele kleurenpalet van de site; \"geen voorkeur\" mag ook", placeholder: "bv. donkerblauw + goud, of \"geen voorkeur, verras ons\"" },
+      { key: "typografie", type: "input", sec: "design", short: "Typografievoorkeur", label: "Welke sfeer moet het lettertype hebben?", hint: "optioneel, maar helpt bij het kiezen van fonts", placeholder: "klassiek/sierlijk, strak/modern, handgeschreven/speels..." },
+      { key: "hero_concept", type: "textarea", sec: "design", short: "Eerste indruk homepage", label: "Wat moet een bezoeker als eerste zien/voelen op de homepage?", hint: "het visuele idee achter de hero-sectie", placeholder: "bv. een barberpaal-motief, het geurtje van versgebrande koffie, rust en ruimte..." },
+      { key: "referenties", type: "textarea", sec: "design", short: "Referenties (mooi)", label: "Websites die ze mooi vinden (met waarom)", hint: "vraag door tot er minstens 1 concreet voorbeeld is — dit stuurt het ontwerp het meest" },
       { key: "vermijden", type: "textarea", sec: "design", short: "Vermijden", label: "Wat moet absoluut vermeden worden?" }
     ]
   },
@@ -2277,7 +2298,8 @@ const CALL_SECTIONS = [
       { key: "hosting_email", type: "input", sec: "techniek", short: "Hosting & e-mail", label: "Huidige hosting / zakelijke e-mail?" },
       { key: "beheer", type: "select", sec: "techniek", short: "Beheer na oplevering", label: "Wie beheert de site straks?", options: ["", "Mo Pro Max (onderhoud)", "Klant zelf (training nodig)", "Nog onbekend"] },
       { key: "avg_privacy", type: "input", sec: "techniek", short: "Privacy / AVG", label: "Bijzondere privacy-/AVG-eisen of klantgegevens?" },
-      { key: "seo_keywords", type: "textarea", sec: "vindbaarheid", short: "Belangrijkste zoekwoorden", label: "Op welke zoekopdrachten willen ze gevonden worden?", placeholder: "bijv. kapper Amsterdam, bruidskapsel..." }
+      { key: "seo_keywords", type: "textarea", sec: "vindbaarheid", short: "Belangrijkste zoekwoorden", label: "Op welke zoekopdrachten willen ze gevonden worden?", placeholder: "bijv. kapper Amsterdam, bruidskapsel..." },
+      { key: "bestaande_reviews", type: "textarea", sec: "vindbaarheid", short: "Bestaande reviews", label: "Zijn er al reviews die op de nieuwe site mogen? Plak er een paar.", hint: "voorkomt dat de site met verzonnen placeholder-reviews start", placeholder: "bv. 3-5 Google-reviews kopiëren, met naam + sterren" }
     ]
   },
   {
@@ -2387,7 +2409,8 @@ function renderSalescallBody(deal) {
         html += `<div class="sc-svc-group"><div class="g">${esc(g.group)}</div><div class="sc-svc-grid">`;
         g.items.forEach(item => {
           const key = scKey(g.group + " " + item);
-          html += `<label><input type="checkbox" class="sc-svc" data-key="${esc(key)}" ${sc.services[key] ? "checked" : ""}> ${esc(item)}</label>`;
+          const modHint = SERVICE_MODULE_MAP[key] ? ` <span class="hint2">→ ${esc(SERVICE_MODULE_MAP[key])}</span>` : "";
+          html += `<label><input type="checkbox" class="sc-svc" data-key="${esc(key)}" ${sc.services[key] ? "checked" : ""}> ${esc(item)}${modHint}</label>`;
         });
         html += `</div></div>`;
       });
@@ -2552,16 +2575,27 @@ function showAgreement(deal, text) {
   let wrap = document.getElementById("sc-agreement-wrap");
   if (!wrap) { wrap = document.createElement("div"); wrap.id = "sc-agreement-wrap"; wrap.className = "sc-sec"; body.appendChild(wrap); }
   wrap.innerHTML = `<h3>Functionaliteitenovereenkomst</h3>
-    <pre class="sc-agreement">${esc(text)}</pre>
-    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+    <div class="sc-guide"><b>Controleer voor het versturen:</b> dit document is de enige brug tussen klantwensen en productie — typefouten of vage antwoorden komen letterlijk terug in de gebouwde site. Corrigeer hieronder waar nodig; je wijzigingen worden bewaard.</div>
+    <textarea class="sc-agreement" id="sc-agreement-text" rows="18" spellcheck="true">${esc(text)}</textarea>
+    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
       <button class="btn secondary" id="sc-copy" type="button">Kopieer</button>
       <button class="btn secondary" id="sc-download" type="button">Download .txt</button>
+      <span id="sc-agreement-saved" class="hint2" style="margin-left:auto;"></span>
     </div>`;
+  const ta = document.getElementById("sc-agreement-text");
+  const savedNote = document.getElementById("sc-agreement-saved");
+  const persistEdits = () => {
+    const sc = ensureSalescall(deal);
+    sc.agreement = ta.value;
+    saveSalescall();
+    if (savedNote) { savedNote.textContent = "Wijzigingen opgeslagen"; setTimeout(() => { if (savedNote.textContent === "Wijzigingen opgeslagen") savedNote.textContent = ""; }, 2500); }
+  };
+  ta.addEventListener("blur", persistEdits);
   document.getElementById("sc-copy").addEventListener("click", () => {
-    navigator.clipboard?.writeText(text).then(() => scSetStatus("Overeenkomst gekopieerd")).catch(() => {});
+    navigator.clipboard?.writeText(ta.value).then(() => scSetStatus("Overeenkomst gekopieerd")).catch(() => {});
   });
   document.getElementById("sc-download").addEventListener("click", () => {
-    downloadText((deal.naam || "overeenkomst").replace(/[^\w-]+/g, "_") + "-overeenkomst.txt", text);
+    downloadText((deal.naam || "overeenkomst").replace(/[^\w-]+/g, "_") + "-overeenkomst.txt", ta.value);
   });
 }
 
