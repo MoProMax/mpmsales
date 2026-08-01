@@ -220,6 +220,14 @@
   .sc-svc-grid label { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: #2a2b33; cursor: pointer; }
   .sc-svc-grid input { margin-top: 2px; }
   .sc-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .sc-hours { border: 1px solid #eceaf3; border-radius: 8px; overflow: hidden; }
+  .sc-hours-row { display: grid; grid-template-columns: 108px 1fr 1fr; gap: 10px; align-items: center; padding: 7px 10px; border-bottom: 1px solid #eceaf3; }
+  .sc-hours-row:last-child { border-bottom: none; }
+  .sc-hours-row:nth-child(odd) { background: #fbfbfd; }
+  .sc-hours-day { display: flex; gap: 6px; align-items: center; font-size: 12.5px; font-weight: 600; color: #2a2b33; cursor: pointer; }
+  .sc-hours-block { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+  .sc-hours-time { width: 84px; padding: 5px 6px; border: 1px solid #d9d8e0; border-radius: 6px; font-size: 12px; }
+  @media (max-width: 640px) { .sc-hours-row { grid-template-columns: 1fr; } }
   .sc-callback { background: #fffdf6; border: 1px solid #eee7d0; border-radius: 10px; padding: 12px 14px; }
   .sc-agreement { display: block; width: 100%; box-sizing: border-box; white-space: pre-wrap; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: #0f1115; color: #e6e6ea; border: 1px solid #2a2c33; border-radius: 10px; padding: 14px; min-height: 260px; max-height: 480px; overflow: auto; resize: vertical; }
   .sc-foot { position: sticky; bottom: 0; background: #f5f5f7; border-top: 1px solid #e6e5eb; border-radius: 0 0 16px 16px; padding: 12px 22px; display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
@@ -2154,6 +2162,10 @@ const SERVICE_MODULE_MAP = {
   "seo_vindbaarheid_review_strategie": "modules.reviews"
 };
 
+// Vaste dagvolgorde voor het openingstijden-invulveld (type "hours"). Elke dag
+// ondersteunt twee blokken (bv. ochtend + middag met een lunchpauze ertussen).
+const OPENINGSTIJDEN_DAGEN = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"];
+
 // Behoefteanalyse-script. Elk blok = een fase in de call. `sec` bepaalt onder
 // welke kop het antwoord in de functionaliteitenovereenkomst belandt; `internal`
 // blijft intern (niet in de overeenkomst). Structuur volgt de standaard
@@ -2190,7 +2202,7 @@ const CALL_SECTIONS = [
       { key: "concurrenten", type: "textarea", sec: "bedrijf", short: "Concurrenten", label: "Wie zijn de concurrenten en wat vinden ze daarvan?" },
       { key: "bedrijf_email", type: "input", sec: "bedrijf", short: "Zakelijk e-mailadres", label: "Wat is het zakelijke e-mailadres voor op de website?", hint: "publiek adres, niet per se het adres van deze contactpersoon", placeholder: "info@bedrijfsnaam.nl" },
       { key: "bedrijf_adres", type: "input", sec: "bedrijf", short: "Bezoekadres", label: "Wat is het bezoekadres voor op de website?", placeholder: "Straatnaam 1, 1234 AB Plaats" },
-      { key: "openingstijden", type: "textarea", sec: "bedrijf", short: "Openingstijden", label: "Wat zijn de openingstijden?", hint: "verplicht voor de site — noteer per dag, of \"gesloten\" waar van toepassing", placeholder: "Ma gesloten, Di–Vr 09:00–18:00, Za 09:00–17:00, Zo gesloten" }
+      { key: "openingstijden", type: "hours", sec: "bedrijf", short: "Openingstijden", label: "Wat zijn de openingstijden?", hint: "verplicht voor de site — per dag aan/uit, en optioneel een 2e blok (bv. voor een lunchpauze)" }
     ]
   },
   {
@@ -2423,6 +2435,23 @@ function renderSalescallBody(deal) {
         html += `<div class="sc-q"><label>${esc(q.label)}${qHint(q)}</label><input type="text" class="sc-answer" data-key="${esc(q.key)}" value="${esc(val || "")}" placeholder="${esc(q.placeholder || "")}"></div>`;
       } else if (q.type === "select") {
         html += `<div class="sc-q"><label>${esc(q.label)}${qHint(q)}</label><select class="sc-answer" data-key="${esc(q.key)}">${(q.options || []).map(o => `<option ${String(val || "") === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select></div>`;
+      } else if (q.type === "hours") {
+        const stored = Array.isArray(val) ? val : [];
+        const byDay = {};
+        stored.forEach(d => { if (d && d.day) byDay[d.day] = d; });
+        const rowsHtml = OPENINGSTIJDEN_DAGEN.map(day => {
+          const d = byDay[day] || {};
+          return `<div class="sc-hours-row" data-day="${esc(day)}">
+            <label class="sc-hours-day"><input type="checkbox" class="sc-hours-open" ${d.open ? "checked" : ""}> ${esc(day)}</label>
+            <div class="sc-hours-block">
+              <input type="time" class="sc-hours-time" data-f="from1" value="${esc(d.from1 || "")}"> <span class="hint2">tot</span> <input type="time" class="sc-hours-time" data-f="to1" value="${esc(d.to1 || "")}">
+            </div>
+            <div class="sc-hours-block">
+              <span class="hint2">2e blok</span> <input type="time" class="sc-hours-time" data-f="from2" value="${esc(d.from2 || "")}"> <span class="hint2">tot</span> <input type="time" class="sc-hours-time" data-f="to2" value="${esc(d.to2 || "")}">
+            </div>
+          </div>`;
+        }).join("");
+        html += `<div class="sc-q"><label>${esc(q.label)}${qHint(q)}</label><div class="sc-hours" data-key="${esc(q.key)}">${rowsHtml}</div></div>`;
       } else {
         html += `<div class="sc-q"><label>${esc(q.label)}${qHint(q)}</label><textarea class="sc-answer" data-key="${esc(q.key)}" placeholder="${esc(q.placeholder || "")}">${esc(val || "")}</textarea></div>`;
       }
@@ -2470,6 +2499,21 @@ function renderSalescallBody(deal) {
   body.querySelectorAll(".sc-answer-check").forEach(el => {
     el.addEventListener("change", () => { sc.answers[el.dataset.key] = el.checked; saveSalescallDebounced(); });
   });
+  body.querySelectorAll(".sc-hours").forEach(wrap => {
+    const key = wrap.dataset.key;
+    const readHours = () => {
+      sc.answers[key] = Array.from(wrap.querySelectorAll(".sc-hours-row")).map(row => ({
+        day: row.dataset.day,
+        open: row.querySelector(".sc-hours-open").checked,
+        from1: row.querySelector('[data-f="from1"]').value,
+        to1: row.querySelector('[data-f="to1"]').value,
+        from2: row.querySelector('[data-f="from2"]').value,
+        to2: row.querySelector('[data-f="to2"]').value
+      }));
+      saveSalescallDebounced();
+    };
+    wrap.querySelectorAll("input").forEach(inp => inp.addEventListener("change", readHours));
+  });
   body.querySelectorAll(".sc-svc").forEach(el => {
     el.addEventListener("change", () => { sc.services[el.dataset.key] = el.checked; syncServicesToDeal(deal); saveSalescallDebounced(); });
   });
@@ -2508,6 +2552,18 @@ function scAnswersForSec(sc, secId) {
   const rows = [];
   CALL_SECTIONS.forEach(section => section.questions.forEach(q => {
     if (q.internal || q.type === "check" || q.sec !== secId) return;
+    if (q.type === "hours") {
+      const days = Array.isArray(sc.answers[q.key]) ? sc.answers[q.key] : [];
+      const lines = days.filter(d => d && d.day).map(d => {
+        if (!d.open) return "   " + d.day + ": gesloten";
+        const blocks = [];
+        if (d.from1 || d.to1) blocks.push((d.from1 || "?") + "–" + (d.to1 || "?"));
+        if (d.from2 || d.to2) blocks.push((d.from2 || "?") + "–" + (d.to2 || "?"));
+        return "   " + d.day + ": " + (blocks.length ? blocks.join(", ") : "open (tijden niet ingevuld)");
+      });
+      if (lines.length) rows.push("• " + (q.short || q.label) + ":", ...lines);
+      return;
+    }
     const a = String(sc.answers[q.key] || "").trim();
     if (a) rows.push("• " + (q.short || q.label) + ": " + a);
   }));
