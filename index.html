@@ -677,7 +677,7 @@
   <div class="sc-modal">
     <div class="sc-head">
       <div>
-        <h2 id="sc-title">Salescall</h2>
+        <h2 id="sc-title">Cliëntanalyse</h2>
         <div class="sub" id="sc-subtitle"></div>
       </div>
       <button class="sc-close" id="sc-close" type="button">&times;</button>
@@ -1540,7 +1540,7 @@ function openNodePanel(nodeId) {
             <div class="meta">${esc(d.branche || "")}${d.contact ? " · " + esc(d.contact) : ""}</div>
           </div>
           <div style="display:flex; gap:5px;">
-            <button class="btn small sc-open-btn" data-id="${esc(d.id)}">📞 Salescall</button>
+            <button class="btn small sc-open-btn" data-id="${esc(d.id)}">📞 Cliëntanalyse</button>
             <button class="btn secondary small edit-deal-btn" data-id="${esc(d.id)}">Bewerken</button>
             <button class="btn danger small delete-deal-card-btn" data-id="${esc(d.id)}" title="Deal verwijderen">&times;</button>
           </div>
@@ -2052,7 +2052,7 @@ function renderDealsTable() {
       <td>${age != null ? `<span class="stage-age ${stale ? "stale" : ""}">${age} d.</span>` : "—"}</td>
       <td>${d.followUpAt ? `<span class="stage-age ${overdue ? "overdue" : ""}">${fmtDate(d.followUpAt)}</span>` : "—"}</td>
       <td style="white-space:nowrap;">
-        <button class="btn small deal-sc-btn" data-id="${esc(d.id)}" title="Salescall / behoefteanalyse">📞</button>
+        <button class="btn small deal-sc-btn" data-id="${esc(d.id)}" title="Cliëntanalyse / behoefteanalyse">📞</button>
         <button class="btn secondary small deal-open-btn" data-node="${d.node}">Open</button>
         <button class="btn secondary small deal-edit-btn" data-id="${esc(d.id)}">Bewerken</button>
       </td>
@@ -2392,7 +2392,7 @@ function openSalescall(dealId) {
   if (!deal) return;
   scDealId = dealId;
   ensureSalescall(deal);
-  document.getElementById("sc-title").textContent = "Salescall — " + deal.naam;
+  document.getElementById("sc-title").textContent = "Cliëntanalyse — " + deal.naam;
   document.getElementById("sc-subtitle").textContent = [deal.branche, deal.telefoon].filter(Boolean).join(" · ");
   scSetStatus("");
   renderSalescallBody(deal);
@@ -2708,7 +2708,7 @@ function agItem(c) {
     </div>
     <div class="ag-actions">
       ${tel ? `<a class="btn secondary small" href="tel:${esc(tel)}">Bel</a>` : ""}
-      <button class="btn small ag-sc" data-id="${esc(d.id)}">📞 Salescall</button>
+      <button class="btn small ag-sc" data-id="${esc(d.id)}">📞 Cliëntanalyse</button>
       <button class="btn secondary small ag-funnel" data-node="${d.node}">Funnel</button>
     </div>
   </div>`;
@@ -2761,7 +2761,7 @@ function renderAgenda() {
   }
 
   if (!show.length) {
-    list.innerHTML = `<div class="empty-msg">Geen terugbelafspraken${agendaView.selectedKey ? " op deze dag" : " gepland. Plan er een via de 📞 Salescall van een lead."}.</div>`;
+    list.innerHTML = `<div class="empty-msg">Geen terugbelafspraken${agendaView.selectedKey ? " op deze dag" : " gepland. Plan er een via de 📞 Cliëntanalyse van een lead."}.</div>`;
     return;
   }
 
