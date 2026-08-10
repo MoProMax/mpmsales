@@ -229,6 +229,17 @@
   .sc-hours-time { width: 84px; padding: 5px 6px; border: 1px solid #d9d8e0; border-radius: 6px; font-size: 12px; }
   @media (max-width: 640px) { .sc-hours-row { grid-template-columns: 1fr; } }
   .sc-callback { background: #fffdf6; border: 1px solid #eee7d0; border-radius: 10px; padding: 12px 14px; }
+  /* Designwensen — aanklikbare chips */
+  .sc-brief-group { border-top: 1px dashed #e6e5eb; padding-top: 14px; margin-top: 6px; }
+  .sc-brief-group:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+  .sc-brief-group > .bt { font-weight: 800; font-size: 13px; color: #14151a; margin: 0 0 10px; letter-spacing: -0.01em; }
+  .sc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sc-chips.full .sc-chip:not(.on) { opacity: 0.4; }
+  .sc-chip { border: 1px solid #d9d8e0; background: #fff; color: #3a3b45; border-radius: 999px; padding: 6px 12px; font-size: 12px; line-height: 1.25; cursor: pointer; user-select: none; text-align: left; transition: background .12s, border-color .12s, color .12s; }
+  .sc-chip:hover { border-color: #a9a7b8; }
+  .sc-chip.on { background: #14151a; color: #fff; border-color: #14151a; }
+  .sc-chips.maxed { animation: scShake .3s; }
+  @keyframes scShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
   .sc-agreement { display: block; width: 100%; box-sizing: border-box; white-space: pre-wrap; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: #0f1115; color: #e6e6ea; border: 1px solid #2a2c33; border-radius: 10px; padding: 14px; min-height: 260px; max-height: 480px; overflow: auto; resize: vertical; }
   .sc-foot { position: sticky; bottom: 0; background: #f5f5f7; border-top: 1px solid #e6e5eb; border-radius: 0 0 16px 16px; padding: 12px 22px; display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
   .sc-foot .status { margin-right: auto; font-size: 11.5px; color: #8a8a96; }
@@ -2282,21 +2293,16 @@ const CALL_SECTIONS = [
     ]
   },
   {
-    title: "8 · Design & uitstraling",
-    guideTitle: "Richting geven aan het ontwerp",
+    title: "8 · Designwensen",
+    designBrief: true,
+    guideTitle: "Laat aanwijzen, niet verzinnen",
     guide: [
-      "Drie woorden vangen het gevoel beter dan een lange uitleg.",
-      "Vraag óók naar voorbeelden die ze lelijk vinden — dat scheelt revisierondes."
+      "Vink samen met de klant aan — wie kan aanwijzen geeft een preciezer antwoord dan wie moet verzinnen.",
+      "Meerdere vinkjes mag, tenzij een maximum staat vermeld. Niets passend? Gebruik het 'Anders, namelijk'-veld.",
+      "Merkpersoonlijkheid, Vormtaal en Motion wegen het zwaarst bij de art direction — zwaarder dan de sector alleen.",
+      "Botsende keuzes (bv. 'maximaal immersive' + 'scherp/mechanisch')? Koppel terug welke twee botsen; kies niet zelf."
     ],
-    questions: [
-      { key: "drie_woorden", type: "input", sec: "design", short: "Uitstraling in 3 woorden", label: "Welke 3 woorden beschrijven de gewenste uitstraling?", placeholder: "modern, warm, luxe, strak, speels..." },
-      { key: "stijl", type: "textarea", sec: "design", short: "Stijlvoorkeuren", label: "Verdere stijlvoorkeuren of wensen?" },
-      { key: "kleuren", type: "input", sec: "design", short: "Kleurvoorkeur", label: "Kleurvoorkeuren / bestaande merkkleuren", hint: "vraag actief door — dit bepaalt het hele kleurenpalet van de site; \"geen voorkeur\" mag ook", placeholder: "bv. donkerblauw + goud, of \"geen voorkeur, verras ons\"" },
-      { key: "typografie", type: "input", sec: "design", short: "Typografievoorkeur", label: "Welke sfeer moet het lettertype hebben?", hint: "optioneel, maar helpt bij het kiezen van fonts", placeholder: "klassiek/sierlijk, strak/modern, handgeschreven/speels..." },
-      { key: "hero_concept", type: "textarea", sec: "design", short: "Eerste indruk homepage", label: "Wat moet een bezoeker als eerste zien/voelen op de homepage?", hint: "het visuele idee achter de hero-sectie", placeholder: "bv. een barberpaal-motief, het geurtje van versgebrande koffie, rust en ruimte..." },
-      { key: "referenties", type: "textarea", sec: "design", short: "Referenties (mooi)", label: "Websites die ze mooi vinden (met waarom)", hint: "vraag door tot er minstens 1 concreet voorbeeld is — dit stuurt het ontwerp het meest" },
-      { key: "vermijden", type: "textarea", sec: "design", short: "Vermijden", label: "Wat moet absoluut vermeden worden?" }
-    ]
+    questions: []
   },
   {
     title: "9 · Techniek & vindbaarheid",
@@ -2341,8 +2347,86 @@ const AGREEMENT_ORDER = [
   { sec: "__functionaliteit__", title: "4. FUNCTIONALITEITEN" },
   { sec: "vindbaarheid", title: "5. VINDBAARHEID & SEO" },
   { sec: "design", title: "6. DESIGN & UITSTRALING" },
-  { sec: "techniek", title: "7. TECHNIEK & HOSTING" },
-  { sec: "__planning__", title: "8. PLANNING & INVESTERING" }
+  { sec: "motion", title: "7. 3D & MOTION" },
+  { sec: "techniek", title: "8. TECHNIEK & HOSTING" },
+  { sec: "__planning__", title: "9. PLANNING & INVESTERING" }
+];
+
+/* =========================================================================
+   DESIGNWENSEN-BRIEF — multiple choice. Aanklikbare chips i.p.v. open vragen.
+   Groepen dragen `sec` (design of motion) → bepaalt waar het in de overeenkomst
+   landt. Vraagtypes: "single" (kies 1), "multi" (meerdere, evt. max), "input"
+   (vrije regel / hex). Antwoorden: single = string, multi = array van labels.
+   ========================================================================= */
+const EMOTIE_OPTS = ["Vertrouwen", "Opwinding/energie", "Rust/kalmte", "Urgentie/actie", "Luxe/exclusiviteit", "Warmte/persoonlijk", "Autoriteit/expertise", "Toegankelijkheid", "Innovatie"];
+const KLEUR_OPTS = ["Marineblauw", "Hemelsblauw", "Petrolblauw/Teal", "Turquoise", "Smaragdgroen", "Olijfgroen", "Mosgroen", "Bosgroen", "Bordeauxrood", "Kersenrood", "Terracotta", "Amberoranje", "Okergeel", "Zonnegeel", "Lavendel", "Paars/Violet", "Roze/Blush", "Antraciet", "Zwart", "Wit/Off-white", "Beige/Zand", "Bruin/Leer"];
+
+const DESIGN_BRIEF = [
+  { title: "1 · Merkpersoonlijkheid", sec: "design", questions: [
+    { key: "archetype", type: "multi", max: 2, short: "Archetype", label: "Archetype", hint: "(kies max 2)", options: [
+      "De Held — moedig, presteert, lost op", "De Verzorger — zorgzaam, betrouwbaar, dienstbaar", "De Ontdekker — vrij, avontuurlijk, anders", "De Heerser — autoriteit, premium, in controle", "De Magiër — transformerend, visionair, innovatief", "De Onschuldige — simpel, eerlijk, optimistisch", "De Gewone Man — nuchter, toegankelijk, één van ons", "De Minnaar — sensueel, intiem, esthetisch", "De Nar — speels, luchtig, humor", "De Rebel — daagt de status quo uit", "De Schepper — creatief, vakmanschap, origineel", "De Wijze — expert, kennis, adviserend"] },
+    { key: "vibe", type: "multi", max: 3, short: "Vibe-referentie", label: "Vibe-referentie", hint: "(kies max 3 — dichtstbijzijnde bekende stijl)", options: [
+      "Apple-achtig — minimalistisch, witruimte", "Stripe-achtig — technisch-clean, subtiele gradients", "Airbnb-achtig — warm, fotografie-gedreven", "Nike-achtig — bold, energiek, grote statements", "Aesop-achtig — luxe minimalisme, aardetinten", "Patagonia-achtig — authentiek, outdoor, geen poeha", "Tesla-achtig — futuristisch, donker, strak", "IKEA-achtig — functioneel, toegankelijk", "Awwwards/experimenteel — 3D, WebGL", "Lokale vakman-achtig — persoonlijk, warm", "Notion/Linear-achtig — rustig, dev-clean"] },
+    { key: "vibe_anders", type: "input", short: "Vibe (anders)", label: "Anders, namelijk", placeholder: "eigen referentie" },
+    { key: "formaliteit", type: "single", short: "Formaliteit", label: "Formaliteit", options: ["Zeer formeel", "Formeel", "Neutraal", "Informeel", "Zeer informeel"] },
+    { key: "toon", type: "single", short: "Toon", label: "Toon", options: ["Zeer serieus", "Serieus", "Neutraal", "Speels", "Zeer speels"] },
+    { key: "positionering", type: "single", short: "Positionering", label: "Positionering", options: ["Traditioneel/bewezen", "Enigszins klassiek", "Neutraal", "Modern", "Vooruitstrevend/experimenteel"] },
+    { key: "aanwezigheid", type: "single", short: "Aanwezigheid", label: "Aanwezigheid", options: ["Stil/subtiel op de achtergrond", "Ingetogen aanwezig", "Gebalanceerd", "Aanwezig", "Opvallend/gedurfd, wil gezien worden"] }
+  ]},
+  { title: "2 · Kleur", sec: "design", questions: [
+    { key: "kleur_hoofd", type: "single", short: "Hoofdkleur", label: "Hoofdkleur (kies 1)", options: KLEUR_OPTS },
+    { key: "kleur_hoofd_hex", type: "input", short: "Hoofdkleur (hex)", label: "Hoofdkleur — anders, hex", placeholder: "#RRGGBB" },
+    { key: "kleur_accent", type: "single", short: "Accentkleur", label: "Accentkleur (contrasteert met hoofdkleur)", options: KLEUR_OPTS.concat(["Geen apart accent, monochroom palet"]) },
+    { key: "kleur_accent_hex", type: "input", short: "Accentkleur (hex)", label: "Accentkleur — anders, hex", placeholder: "#RRGGBB" },
+    { key: "kleurtemperatuur", type: "single", short: "Kleurtemperatuur", label: "Kleurtemperatuur", options: ["Warm", "Koel", "Neutraal"] },
+    { key: "verzadiging", type: "single", short: "Verzadiging", label: "Verzadiging", options: ["Fel/verzadigd", "Gedempt/pastel", "Bijna monochroom/grijstinten", "Aardetinten"] },
+    { key: "palet_aantal", type: "single", short: "Aantal kleuren", label: "Aantal kleuren in palet", options: ["Minimalistisch (2)", "Klassiek (3)", "Rijk (4–5)", "Kleurrijk/multicolor (6+)"] },
+    { key: "kleurschema", type: "single", short: "Kleurschema", label: "Kleurschema-type", options: ["Monochromatisch", "Complementair", "Analoog", "Triadisch", "Split-complementair", "Neutraal + 1 accentkleur"] },
+    { key: "achtergrond", type: "single", short: "Achtergrond", label: "Achtergrond", options: ["Wit/licht", "Donker/zwart", "Gebroken wit (crème/beige)", "Gekleurde achtergrond"] }
+  ]},
+  { title: "3 · Typografie", sec: "design", questions: [
+    { key: "type_kop", type: "single", short: "Kop-lettertype", label: "Categorie kop-lettertype (kies 1)", options: ["Geometrisch sans-serif — strak, technisch", "Humanistisch sans-serif — vriendelijk, leesbaar", "Grotesk / Zwitsers — tijdloos, neutraal", "Klassieke serif — traditioneel, gezaghebbend", "Moderne / editorial serif — luxe, expressief", "Display / statement — opvallend, karakteristiek", "Monospace / technisch — labels, cijfers, code", "Speels / rond — informeel, toegankelijk", "Geen voorkeur — Mo Pro Max kiest passend"] },
+    { key: "type_specifiek", type: "input", short: "Specifiek font", label: "Specifiek font (indien bekend)", placeholder: "fontnaam" },
+    { key: "type_combinatie", type: "single", short: "Kop/body-combinatie", label: "Combinatie kop/body", options: ["Alles uit dezelfde familie", "Sans-serif kop + sans-serif body", "Serif kop + sans-serif body", "Sans-serif kop + serif body", "Monospace-accenten + sans-serif"] },
+    { key: "type_grootte", type: "single", short: "Grootte koppen", label: "Grootte-gevoel koppen", options: ["Extra groot/statement", "Groot maar beheerst", "Gemiddeld, leesgericht", "Compact/informatiedicht"] },
+    { key: "type_gewicht", type: "single", short: "Gewicht", label: "Gewicht", options: ["Dun/licht (elegant)", "Regular (neutraal)", "Semi-bold (zelfverzekerd)", "Bold/extra-bold (krachtig)"] },
+    { key: "type_labels", type: "single", short: "Labels & tracking", label: "Labels & tracking", options: ["Brede tracking + hoofdletters", "Normale tracking, gemengd", "Smalle tracking, strak (editorial)"] },
+    { key: "type_cijfers", type: "single", short: "Cijferstijl", label: "Cijfers/nummers", options: ["Tabular/monospace nummers", "Standaard proportioneel", "Geen voorkeur"] }
+  ]},
+  { title: "4 · Beeldtaal", sec: "design", questions: [
+    { key: "foto_stijl", type: "multi", short: "Fotostijl", label: "Fotostijl", options: ["Natuurlijk daglicht, documentair", "Studio, gecontroleerd licht", "Zwart-wit met kleuraccent", "Warme kleurgrading", "Koele/blauwe kleurgrading", "Hoog contrast, dramatisch", "Zacht, laag contrast, luchtig"] },
+    { key: "mensen", type: "single", short: "Mensen in beeld", label: "Mensen in beeld", options: ["Ja, team/gezichten prominent", "Ja, maar op de achtergrond/anoniem", "Nee, alleen product/resultaat", "Mix van beide"] },
+    { key: "beeldmiddel", type: "multi", max: 2, short: "Primair beeldmiddel", label: "Primair beeldmiddel", hint: "(kies max 2)", options: ["Fotografie", "Illustratie, vlak/flat", "Illustratie, handgetekend", "3D-render", "Iconografie/pictogrammen"] },
+    { key: "icoon", type: "single", short: "Icoon-stijl", label: "Icoon-stijl", options: ["Dunne lijnicons", "Gevulde (solid) icons", "Duotone icons", "3D-icons", "Geen icons, alleen foto's/tekst"] },
+    { key: "voorna", type: "single", short: "Voor/na-materiaal", label: "Voor/na-materiaal (indien relevant)", options: ["Hard contrast, split-screen", "Subtiele reveal-animatie (slider/wipe)", "Niet gebruiken"] }
+  ]},
+  { title: "5 · Vormtaal & layout", sec: "design", questions: [
+    { key: "hoeken", type: "single", short: "Hoeken", label: "Hoeken", options: ["Scherp, 0px radius overal", "Licht afgerond (4–8px)", "Duidelijk afgerond (16px+)", "Volledig rond/pill-vormig", "Organisch/onregelmatig"] },
+    { key: "grid", type: "single", short: "Grid", label: "Grid", options: ["Strak zichtbaar grid met lijnen", "Onzichtbaar grid, vloeiende overgangen", "Asymmetrisch/broken grid"] },
+    { key: "dichtheid", type: "single", short: "Dichtheid", label: "Dichtheid", options: ["Veel witruimte, minimalistisch", "Gebalanceerd", "Informatiedicht, veel content zichtbaar"] },
+    { key: "compositie", type: "single", short: "Compositie", label: "Compositie", options: ["Gecentreerd/symmetrisch", "Asymmetrisch/dynamisch", "Full-bleed/randloos"] }
+  ]},
+  { title: "6 · Motion & 3D-gevoel", sec: "motion", questions: [
+    { key: "motion_snelheid", type: "single", short: "Snelheid", label: "Snelheid", options: ["Snel & direct (<0,3s)", "Gemiddeld (0,5–0,8s)", "Langzaam & vloeiend (1s+)"] },
+    { key: "motion_easing", type: "single", short: "Easing-gevoel", label: "Easing-gevoel", options: ["Strak mechanisch, geen overshoot", "Natuurlijk/fysiek, licht overshoot", "Speels, met bounce/veer-effect"] },
+    { key: "motion_hoeveelheid", type: "single", short: "Hoeveelheid beweging", label: "Hoeveelheid beweging", options: ["Minimaal (alleen fades)", "Gematigd (fade + subtiele beweging)", "Uitgesproken (scroll-choreografie, parallax)", "Maximaal immersive (3D reageert overal)"] },
+    { key: "motion_3d", type: "single", short: "3D-interactie", label: "Interactie 3D-object", options: ["Reageert op muisbeweging", "Reageert op scrollen", "Beide", "Alleen rustige idle-animatie", "Geen 3D nodig"] },
+    { key: "motion_geluid", type: "single", short: "Geluid", label: "Geluid", options: ["Geen geluid", "Subtiele UI-sounds bij interactie", "Achtergrondgeluid/ambient in hero"] }
+  ]},
+  { title: "7 · Emotie per pagina", sec: "design", questions: [
+    { key: "emotie_home", type: "multi", max: 2, short: "Emotie — Homepage", label: "Homepage", hint: "(max 2)", options: EMOTIE_OPTS },
+    { key: "emotie_diensten", type: "multi", max: 2, short: "Emotie — Diensten", label: "Diensten", hint: "(max 2)", options: EMOTIE_OPTS },
+    { key: "emotie_offerte", type: "multi", max: 2, short: "Emotie — Offerteformulier", label: "Offerteformulier", hint: "(max 2)", options: EMOTIE_OPTS },
+    { key: "emotie_over", type: "multi", max: 2, short: "Emotie — Over ons", label: "Over ons", hint: "(max 2)", options: EMOTIE_OPTS }
+  ]},
+  { title: "8 · Lokale/culturele identiteit", sec: "design", questions: [
+    { key: "lokaal", type: "single", short: "Lokale identiteit", label: "Lokale/culturele identiteit", options: ["Ja, sterk aanwezig (bv. haven/industrieel, streekgebonden)", "Ja, subtiel (kleine knipoog)", "Nee, locatie-neutraal"] },
+    { key: "lokaal_toelichting", type: "input", short: "Lokaal (toelichting)", label: "Toelichting", placeholder: "bv. havenmotief, streekbeeld..." }
+  ]},
+  { title: "9 · Concrete no-go's", sec: "design", questions: [
+    { key: "nogo", type: "multi", short: "No-go's", label: "Vink alles aan wat vermeden moet worden", options: ["Paarse/blauwe gradient-knoppen", "Stockfoto's van mensen in pak die handen schudden", "Cliché iconen (gloeilamp, handdruk, puzzelstuk)", "'3 features met outline-icoon'-grid", "Overdreven afgeronde hoeken overal", "Inter als enige/hoofdfont", "Emoji's in de UI", "Te veel animatie/afleiding", "Nep-diversiteit stockfoto's", "Wall-of-text zonder witruimte"] },
+    { key: "nogo_anders", type: "input", short: "No-go (anders)", label: "Anders, namelijk", placeholder: "..." }
+  ]}
 ];
 
 const SC_PAKKET_OPTS = [
@@ -2403,6 +2487,23 @@ function closeSalescall() {
   scDealId = null;
 }
 
+// Rendert één designwens-vraag: chips (single/multi) of een vrij invoerveld.
+function renderDesignQ(q, sc) {
+  const hint = q.hint ? ` <span class="hint2">${esc(q.hint)}</span>` : "";
+  const val = sc.answers[q.key];
+  if (q.type === "input") {
+    return `<div class="sc-q"><label>${esc(q.label)}${hint}</label><input type="text" class="sc-answer" data-key="${esc(q.key)}" value="${esc(val || "")}" placeholder="${esc(q.placeholder || "")}"></div>`;
+  }
+  const arr = Array.isArray(val) ? val : [];
+  const chips = (q.options || []).map(o => {
+    const on = q.type === "multi" ? arr.includes(o) : (val === o);
+    return `<button type="button" class="sc-chip${on ? " on" : ""}" data-label="${esc(o)}">${esc(o)}</button>`;
+  }).join("");
+  const full = (q.type === "multi" && q.max && arr.length >= q.max) ? " full" : "";
+  const maxAttr = q.max ? ` data-max="${q.max}"` : "";
+  return `<div class="sc-q"><label>${esc(q.label)}${hint}</label><div class="sc-chips${full}" data-key="${esc(q.key)}" data-mode="${q.type}"${maxAttr}>${chips}</div></div>`;
+}
+
 function renderSalescallBody(deal) {
   const sc = ensureSalescall(deal);
   const body = document.getElementById("salescall-body");
@@ -2414,6 +2515,14 @@ function renderSalescallBody(deal) {
     html += `<div class="sc-sec"><h3>${esc(sec.title)}</h3>`;
     if (sec.guide && sec.guide.length) {
       html += `<div class="sc-guide"><b>${esc(sec.guideTitle || "Aanpak")}:</b><ul>${sec.guide.map(g => `<li>${esc(g)}</li>`).join("")}</ul></div>`;
+    }
+    // Designwensen-brief: aanklikbare chips per subgroep
+    if (sec.designBrief) {
+      DESIGN_BRIEF.forEach(group => {
+        html += `<div class="sc-brief-group"><div class="bt">${esc(group.title)}</div>`;
+        group.questions.forEach(q => { html += renderDesignQ(q, sc); });
+        html += `</div>`;
+      });
     }
     // Diensten-checkboxes (uit mopromax.com) binnen de functionaliteiten-sectie
     if (sec.showServices) {
@@ -2517,6 +2626,30 @@ function renderSalescallBody(deal) {
   body.querySelectorAll(".sc-svc").forEach(el => {
     el.addEventListener("change", () => { sc.services[el.dataset.key] = el.checked; syncServicesToDeal(deal); saveSalescallDebounced(); });
   });
+  // Designwens-chips: single (kies 1) of multi (meerdere, met optioneel max)
+  body.querySelectorAll(".sc-chips").forEach(cont => {
+    const key = cont.dataset.key;
+    const mode = cont.dataset.mode;
+    const max = Number(cont.dataset.max) || 0;
+    cont.querySelectorAll(".sc-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const label = chip.dataset.label;
+        if (mode === "single") {
+          sc.answers[key] = (sc.answers[key] === label) ? "" : label;
+          cont.querySelectorAll(".sc-chip").forEach(c => c.classList.toggle("on", c.dataset.label === sc.answers[key]));
+        } else {
+          let arr = Array.isArray(sc.answers[key]) ? sc.answers[key] : (sc.answers[key] = []);
+          const idx = arr.indexOf(label);
+          if (idx >= 0) { arr.splice(idx, 1); chip.classList.remove("on"); }
+          else if (max && arr.length >= max) {
+            cont.classList.add("maxed"); setTimeout(() => cont.classList.remove("maxed"), 300); return;
+          } else { arr.push(label); chip.classList.add("on"); }
+          cont.classList.toggle("full", !!(max && arr.length >= max));
+        }
+        saveSalescallDebounced();
+      });
+    });
+  });
   pakketSel.addEventListener("change", e => {
     const [naam, prijs] = e.target.value.split("|");
     deal.pakketKey = e.target.value; deal.pakket = naam;
@@ -2570,6 +2703,24 @@ function scAnswersForSec(sc, secId) {
   return rows;
 }
 
+// Verzamelt de designwensen-antwoorden (chips + vrije velden) van een `sec`,
+// gegroepeerd per subgroep, voor de overeenkomst.
+function scDesignSection(sc, secId) {
+  const out = [];
+  DESIGN_BRIEF.filter(g => g.sec === secId).forEach(group => {
+    const rows = [];
+    group.questions.forEach(q => {
+      const val = sc.answers[q.key];
+      let s = "";
+      if (q.type === "multi") { const a = Array.isArray(val) ? val : []; if (a.length) s = a.join(", "); }
+      else { s = String(val || "").trim(); }
+      if (s) rows.push("   • " + (q.short || q.label) + ": " + s);
+    });
+    if (rows.length) { out.push(group.title.replace(/^\d+\s·\s/, "") + ":", ...rows); }
+  });
+  return out;
+}
+
 function buildAgreement(deal) {
   const sc = ensureSalescall(deal);
   const [pkgNaam, pkgPrijs] = (deal.pakketKey || "Starter|199").split("|");
@@ -2601,6 +2752,11 @@ function buildAgreement(deal) {
       L.push("• Pakket: " + pkgNaam + (Number(pkgPrijs) ? " — €" + pkgPrijs : " — op aanvraag"));
       if (Number(deal.onderhoud)) L.push("• Onderhoud: €" + deal.onderhoud + "/mnd");
       if (Number(deal.waarde)) L.push("• Eenmalige waarde: €" + deal.waarde);
+    } else if (block.sec === "design" || block.sec === "motion") {
+      const rows = scAnswersForSec(sc, block.sec).concat(scDesignSection(sc, block.sec));
+      if (!rows.length) return; // lege secties overslaan
+      L.push(""); L.push(block.title); L.push(rule);
+      rows.forEach(r => L.push(r));
     } else {
       const rows = scAnswersForSec(sc, block.sec);
       if (!rows.length) return; // lege secties overslaan
