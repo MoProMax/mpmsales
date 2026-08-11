@@ -660,7 +660,10 @@
     </div>
 
     <div class="panel">
-      <div class="panel-title">Leads inbox</div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+        <div class="panel-title">Leads inbox</div>
+        <button class="btn" id="new-lead-btn">+ Lead handmatig toevoegen</button>
+      </div>
       <div class="panel-desc">Bedrijven gevonden via internet-onderzoek, nog niet in de funnel. Selecteer leads en plaats ze direct bij "Nieuwe lead".</div>
       <div id="fb-status" style="font-size:11.5px; color:var(--text-secondary); margin-bottom:10px; font-weight:600;">Firebase: initialiseren...</div>
       <div class="filters">
@@ -807,6 +810,32 @@
         <button type="button" class="btn danger" id="delete-deal-btn" style="margin-right:auto; display:none;">Verwijderen</button>
         <button type="button" class="btn secondary" id="cancel-btn">Annuleren</button>
         <button type="submit" class="btn">Opslaan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== MODAL (lead handmatig toevoegen) ===================== -->
+<div class="modal-backdrop" id="lead-modal-backdrop">
+  <div class="modal">
+    <h2>Lead handmatig toevoegen</h2>
+    <form id="lead-form">
+      <div class="field"><label>Bedrijfsnaam *</label><input type="text" id="lf-naam" required></div>
+      <div class="row-2">
+        <div class="field"><label>Branche</label><input type="text" id="lf-branche" placeholder="bijv. Kapper"></div>
+        <div class="field"><label>Telefoon</label><input type="text" id="lf-telefoon"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Regio</label><input type="text" id="lf-regio" placeholder="bijv. Utrecht"></div>
+        <div class="field"><label>Adres</label><input type="text" id="lf-adres"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Cijfer (0–5)</label><input type="number" id="lf-rating" min="0" max="5" step="0.1"></div>
+        <div class="field"><label>Aantal reviews</label><input type="number" id="lf-reviews" min="0"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn secondary" id="lead-cancel-btn">Annuleren</button>
+        <button type="submit" class="btn">Toevoegen aan inbox</button>
       </div>
     </form>
   </div>
@@ -1870,6 +1899,43 @@ on("deal-form", "submit", (e) => {
   saveState();
   closeDealModal();
   renderAll();
+});
+
+// ---- Lead handmatig toevoegen (los van de research-pijplijn) ----
+function openLeadModal() {
+  document.getElementById("lead-form").reset();
+  document.getElementById("lead-modal-backdrop").classList.add("open");
+  document.getElementById("lf-naam")?.focus();
+}
+function closeLeadModal() {
+  document.getElementById("lead-modal-backdrop").classList.remove("open");
+}
+on("new-lead-btn", "click", openLeadModal);
+on("lead-cancel-btn", "click", closeLeadModal);
+on("lead-modal-backdrop", "click", (e) => { if (e.target.id === "lead-modal-backdrop") closeLeadModal(); });
+
+on("lead-form", "submit", (e) => {
+  e.preventDefault();
+  const naam = document.getElementById("lf-naam").value.trim();
+  if (!naam) return;
+  const ratingVal = document.getElementById("lf-rating").value;
+  const reviewsVal = document.getElementById("lf-reviews").value;
+  state.inboxLeads.push({
+    id: "lead-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+    naam,
+    branche: document.getElementById("lf-branche").value.trim(),
+    telefoon: document.getElementById("lf-telefoon").value.trim(),
+    regio: document.getElementById("lf-regio").value.trim(),
+    adres: document.getElementById("lf-adres").value.trim(),
+    rating: ratingVal === "" ? null : Number(ratingVal),
+    reviews: reviewsVal === "" ? null : Number(reviewsVal),
+    handmatig: true,
+    toegevoegdOp: new Date().toISOString()
+  });
+  saveState();
+  closeLeadModal();
+  renderInbox();
+  renderSummary();
 });
 
 function distinctSorted(arr) {
