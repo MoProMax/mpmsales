@@ -2434,7 +2434,25 @@ const CALL_SECTIONS = [
     questions: []
   },
   {
-    title: "9 · Techniek & vindbaarheid",
+    title: "9 · Scroll-scrub animatie (bouwfase)",
+    scrollScrubPrompt: true,
+    guideTitle: "Alleen relevant bij een concreet visueel 'wow-moment'",
+    guide: [
+      "Optioneel — vul dit alleen in als bij 'Scroll-scrub animatie relevant?' hierboven Ja of Nog te bepalen is gekozen.",
+      "Denk aan: een vallend object, in-elkaar-schuivende onderdelen, een opbouwende scene of een product-reveal die bij het product/de dienst van de klant past.",
+      "Hoe specifieker je hier bent (onderwerp, materiaal, beweging), hoe beter de gegenereerde animatie aansluit — dit wordt automatisch omgezet in een kant-en-klare prompt voor de bouwfase.",
+      "De knop onderaan bundelt deze antwoorden + de designwensen (kleur, merkgevoel, tempo, no-go's) tot één uitgebreide prompt voor de skill scroll-scrub-ai-rendering."
+    ],
+    questions: [
+      { key: "scrollscrub_onderwerp", type: "textarea", sec: "motion", short: "Onderwerp/scene", label: "Wat is het onderwerp/product van de animatie?", hint: "wees zo specifiek mogelijk: voorwerp, vorm, kleur, materiaal", placeholder: "bv. een dakpan die op zijn plek valt en vastklikt, met regendruppels die afspatten" },
+      { key: "scrollscrub_materiaal", type: "input", sec: "motion", short: "Materiaal/oppervlak", label: "Materiaal of oppervlak", placeholder: "bv. dakpannen, EPDM-folie, hout, RVS, glas" },
+      { key: "scrollscrub_beweging", type: "textarea", sec: "motion", short: "Belangrijkste beweging", label: "Wat gebeurt er precies? Beschrijf de beweging van begin- naar eindpunt." },
+      { key: "scrollscrub_pagina", type: "input", sec: "motion", short: "Plaatsing op de site", label: "Op welke pagina/sectie komt de animatie?", placeholder: "bv. hero van de homepage" },
+      { key: "scrollscrub_referentie", type: "textarea", sec: "motion", short: "Referentie", label: "Kent de klant een voorbeeld/referentie-video die hij mooi vindt?", placeholder: "link of beschrijving" }
+    ]
+  },
+  {
+    title: "10 · Techniek & vindbaarheid",
     guideTitle: "Verantwoordelijkheden en vindbaarheid helder",
     guide: [
       "Wie is eigenaar van domein, hosting en e-mail? Voorkomt gedoe bij livegang.",
@@ -2450,7 +2468,7 @@ const CALL_SECTIONS = [
     ]
   },
   {
-    title: "10 · Afronding",
+    title: "11 · Afronding",
     guideTitle: "Sluit af met een concrete vervolgstap",
     guide: [
       "Vat samen, benoem de gekozen richting en spreek een concrete vervolgstap af.",
@@ -2477,8 +2495,9 @@ const AGREEMENT_ORDER = [
   { sec: "vindbaarheid", title: "5. VINDBAARHEID & SEO" },
   { sec: "design", title: "6. DESIGN & UITSTRALING" },
   { sec: "motion", title: "7. 3D & MOTION" },
-  { sec: "techniek", title: "8. TECHNIEK & HOSTING" },
-  { sec: "__planning__", title: "9. PLANNING & INVESTERING" }
+  { sec: "__scrollscrub__", title: "8. SCROLL-SCRUB ANIMATIE — PROMPT VOOR BOUWFASE" },
+  { sec: "techniek", title: "9. TECHNIEK & HOSTING" },
+  { sec: "__planning__", title: "10. PLANNING & INVESTERING" }
 ];
 
 /* =========================================================================
@@ -2540,7 +2559,10 @@ const DESIGN_BRIEF = [
     { key: "motion_easing", type: "single", short: "Easing-gevoel", label: "Easing-gevoel", options: ["Strak mechanisch, geen overshoot", "Natuurlijk/fysiek, licht overshoot", "Speels, met bounce/veer-effect"] },
     { key: "motion_hoeveelheid", type: "single", short: "Hoeveelheid beweging", label: "Hoeveelheid beweging", options: ["Minimaal (alleen fades)", "Gematigd (fade + subtiele beweging)", "Uitgesproken (scroll-choreografie, parallax)", "Maximaal immersive (3D reageert overal)"] },
     { key: "motion_3d", type: "single", short: "3D-interactie", label: "Interactie 3D-object", options: ["Reageert op muisbeweging", "Reageert op scrollen", "Beide", "Alleen rustige idle-animatie", "Geen 3D nodig"] },
-    { key: "motion_geluid", type: "single", short: "Geluid", label: "Geluid", options: ["Geen geluid", "Subtiele UI-sounds bij interactie", "Achtergrondgeluid/ambient in hero"] }
+    { key: "motion_geluid", type: "single", short: "Geluid", label: "Geluid", options: ["Geen geluid", "Subtiele UI-sounds bij interactie", "Achtergrondgeluid/ambient in hero"] },
+    { key: "scrollscrub_relevant", type: "single", short: "Scroll-scrub animatie relevant?", label: "Scroll-scrub animatie relevant?", hint: "(realistisch/3D-achtig 'wow-moment' — bepaalt of de skill scroll-scrub-ai-rendering bij de bouw wordt ingezet)", options: ["Ja", "Nee", "Nog te bepalen"] },
+    { key: "scrollscrub_type", type: "multi", short: "Type scroll-scrub animatie", label: "Type animatie", hint: "(kies wat past — dit stuurt de skill scroll-scrub-ai-rendering aan)", options: ["Vallend object", "In-elkaar-schuivende onderdelen", "Opbouwende scene", "Product-reveal", "Transformatie/verandering van vorm"] },
+    { key: "scrollscrub_type_anders", type: "input", short: "Type animatie (anders)", label: "Anders, namelijk", placeholder: "eigen omschrijving van het type animatie" }
   ]},
   { title: "7 · Emotie per pagina", sec: "design", questions: [
     { key: "emotie_home", type: "multi", max: 2, short: "Emotie — Homepage", label: "Homepage", hint: "(max 2)", options: EMOTIE_OPTS },
@@ -2694,6 +2716,9 @@ function renderSalescallBody(deal) {
         html += `<div class="sc-q"><label>${esc(q.label)}${qHint(q)}</label><textarea class="sc-answer" data-key="${esc(q.key)}" placeholder="${esc(q.placeholder || "")}">${esc(val || "")}</textarea></div>`;
       }
     });
+    if (sec.scrollScrubPrompt) {
+      html += `<button class="btn secondary" id="sc-gen-scrollscrub" type="button">Genereer scroll-scrub-prompt</button><div id="sc-scrollscrub-wrap"></div>`;
+    }
     html += `</div>`;
   });
 
@@ -2719,6 +2744,7 @@ function renderSalescallBody(deal) {
 
   body.innerHTML = html;
   if (sc.agreement) showAgreement(deal, sc.agreement);
+  if (sc.scrollScrubPrompt) showScrollScrubPrompt(deal, sc.scrollScrubPrompt);
 
   const pakketSel = document.getElementById("sc-pakket");
   const onderhoudSel = document.getElementById("sc-onderhoud");
@@ -2790,6 +2816,7 @@ function renderSalescallBody(deal) {
     saveSalescallDebounced(); renderSummary();
   });
   document.getElementById("sc-cb-save").addEventListener("click", () => scheduleCallback(deal));
+  document.getElementById("sc-gen-scrollscrub")?.addEventListener("click", generateScrollScrubPrompt);
 }
 
 // Terugbelafspraak: koppelt aan de bestaande opvolg-reminder + activiteitenlog.
@@ -2850,6 +2877,74 @@ function scDesignSection(sc, secId) {
   return out;
 }
 
+// Bouwt de uitgebreide video-prompt voor de skill "scroll-scrub-ai-rendering".
+// Combineert de vrije scène-omschrijving (onderwerp, materiaal, beweging) met
+// de al ingevulde designwensen (kleur, merkgevoel, tempo, no-go's), zodat de
+// bouwfase één kant-en-klare, specifieke prompt krijgt in plaats van losse
+// aantekeningen die opnieuw samengevoegd moeten worden.
+function buildScrollScrubPrompt(deal) {
+  const sc = ensureSalescall(deal);
+  const a = sc.answers;
+  const relevant = a.scrollscrub_relevant || "";
+  if (relevant.toLowerCase().startsWith("nee")) return "";
+  const hasContent = a.scrollscrub_onderwerp || a.scrollscrub_beweging || (Array.isArray(a.scrollscrub_type) && a.scrollscrub_type.length);
+  if (!hasContent) return ""; // altijd een scène-omschrijving nodig, ook als 'relevant' al op Ja staat
+
+  const rule = "-".repeat(60);
+  const L = [];
+  L.push("SCROLL-SCRUB VIDEO-PROMPT — input voor de skill 'scroll-scrub-ai-rendering'");
+  L.push("=".repeat(60));
+  L.push("Klant: " + (deal.naam || "") + (deal.branche ? " (" + deal.branche + ")" : ""));
+  L.push("");
+  L.push("ONDERWERP & SCENE");
+  L.push(rule);
+  const typeList = Array.isArray(a.scrollscrub_type) ? a.scrollscrub_type.join(", ") : "";
+  if (typeList) L.push("Type animatie: " + typeList + (a.scrollscrub_type_anders ? " · " + a.scrollscrub_type_anders : ""));
+  if (a.scrollscrub_onderwerp) L.push("Onderwerp: " + a.scrollscrub_onderwerp);
+  if (a.scrollscrub_materiaal) L.push("Materiaal / oppervlak: " + a.scrollscrub_materiaal);
+  if (a.scrollscrub_beweging) L.push("Belangrijkste beweging (van → naar): " + a.scrollscrub_beweging);
+  if (a.scrollscrub_pagina) L.push("Plaatsing op de site: " + a.scrollscrub_pagina);
+  if (a.scrollscrub_referentie) L.push("Referentie / voorbeeld dat de klant mooi vindt: " + a.scrollscrub_referentie);
+  L.push("");
+  L.push("STIJL & MERKAFSTEMMING (automatisch overgenomen uit de designwensen)");
+  L.push(rule);
+  const styleBits = [];
+  if (a.kleur_hoofd) styleBits.push("hoofdkleur " + a.kleur_hoofd + (a.kleur_hoofd_hex ? " (" + a.kleur_hoofd_hex + ")" : ""));
+  if (a.kleur_accent) styleBits.push("accentkleur " + a.kleur_accent + (a.kleur_accent_hex ? " (" + a.kleur_accent_hex + ")" : ""));
+  if (a.kleurtemperatuur) styleBits.push(a.kleurtemperatuur.toLowerCase() + " kleurtemperatuur");
+  if (a.verzadiging) styleBits.push(a.verzadiging.toLowerCase());
+  L.push("Kleurgebruik: " + (styleBits.length ? styleBits.join(", ") + "." : "geen specifieke kleurwens vastgelegd — gebruik het merkpalet van de site."));
+  const moodBits = [];
+  if (Array.isArray(a.archetype) && a.archetype.length) moodBits.push(a.archetype.join(" / "));
+  if (Array.isArray(a.vibe) && a.vibe.length) moodBits.push(a.vibe.join(" / "));
+  if (a.aanwezigheid) moodBits.push(a.aanwezigheid);
+  L.push("Merkgevoel: " + (moodBits.length ? moodBits.join(" — ") + "." : "neutraal, geen specifiek merkarchetype vastgelegd."));
+  const motionBits = [];
+  if (a.motion_snelheid) motionBits.push(a.motion_snelheid);
+  if (a.motion_easing) motionBits.push(a.motion_easing);
+  if (a.motion_hoeveelheid) motionBits.push(a.motion_hoeveelheid);
+  L.push("Tempo & easing: " + (motionBits.length ? motionBits.join(", ") + "." : "gematigd tempo, natuurlijke easing."));
+  L.push("");
+  L.push("TE VERMIJDEN");
+  L.push(rule);
+  const avoid = [];
+  if (Array.isArray(a.nogo)) avoid.push(...a.nogo);
+  if (a.nogo_anders) avoid.push(a.nogo_anders);
+  if (a.vermijden) avoid.push(a.vermijden);
+  if (avoid.length) avoid.forEach(x => L.push("- " + x));
+  else L.push("(geen specifieke restricties genoemd)");
+  L.push("");
+  L.push("TECHNISCHE EISEN (vast onderdeel van de skill, niet onderhandelbaar)");
+  L.push(rule);
+  L.push("- Render 2 video's: één in 16:9 voor desktop, één in 9:16 voor mobiel — elk met een compositie die past bij die verhouding (geen simpele crop van dezelfde opname).");
+  L.push("- De video speelt NOOIT automatisch af. Uitsluitend scroll-scrub: elk frame wordt direct aan de scrollpositie gekoppeld, de bezoeker scrubt er zelf doorheen.");
+  L.push("- Naadloos rustpunt bij het begin- en eindframe, zodat de scene stilstaat op de plek waar de bezoeker stopt met scrollen.");
+  L.push("- Optimaliseer voor web (compressie/formaat) zonder zichtbaar kwaliteitsverlies op het belangrijkste moment van de animatie.");
+  L.push("");
+  L.push("Gebruik deze prompt als input voor de skill 'scroll-scrub-ai-rendering' bij het bouwen van deze website.");
+  return L.join("\n");
+}
+
 function buildAgreement(deal) {
   const sc = ensureSalescall(deal);
   const [pkgNaam, pkgPrijs] = (deal.pakketKey || "Starter|199").split("|");
@@ -2886,6 +2981,10 @@ function buildAgreement(deal) {
       if (!rows.length) return; // lege secties overslaan
       L.push(""); L.push(block.title); L.push(rule);
       rows.forEach(r => L.push(r));
+    } else if (block.sec === "__scrollscrub__") {
+      if (!sc.scrollScrubPrompt) return; // alleen tonen als er echt een prompt gegenereerd is
+      L.push(""); L.push(block.title); L.push(rule);
+      L.push(sc.scrollScrubPrompt);
     } else {
       const rows = scAnswersForSec(sc, block.sec);
       if (!rows.length) return; // lege secties overslaan
@@ -2950,6 +3049,49 @@ function generateAgreement() {
   saveSalescall();
   showAgreement(deal, text);
   document.getElementById("sc-agreement-wrap")?.scrollIntoView({ behavior: "smooth" });
+}
+
+function showScrollScrubPrompt(deal, text) {
+  const wrap = document.getElementById("sc-scrollscrub-wrap");
+  if (!wrap) return;
+  if (!text) { wrap.innerHTML = ""; return; }
+  wrap.innerHTML = `
+    <div class="sc-guide" style="margin-top:10px;"><b>Klaar voor de bouwfase:</b> deze prompt is direct te gebruiken als input voor de skill <code>scroll-scrub-ai-rendering</code>. Corrigeer hieronder waar nodig; je wijzigingen worden bewaard.</div>
+    <textarea class="sc-agreement" id="sc-scrollscrub-text" rows="16" spellcheck="true">${esc(text)}</textarea>
+    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
+      <button class="btn secondary" id="sc-scrollscrub-copy" type="button">Kopieer</button>
+      <button class="btn secondary" id="sc-scrollscrub-download" type="button">Download .txt</button>
+      <span id="sc-scrollscrub-saved" class="hint2" style="margin-left:auto;"></span>
+    </div>`;
+  const ta = document.getElementById("sc-scrollscrub-text");
+  const savedNote = document.getElementById("sc-scrollscrub-saved");
+  ta.addEventListener("blur", () => {
+    ensureSalescall(deal).scrollScrubPrompt = ta.value;
+    saveSalescall();
+    if (savedNote) { savedNote.textContent = "Wijzigingen opgeslagen"; setTimeout(() => { if (savedNote.textContent === "Wijzigingen opgeslagen") savedNote.textContent = ""; }, 2500); }
+  });
+  document.getElementById("sc-scrollscrub-copy").addEventListener("click", () => {
+    navigator.clipboard?.writeText(ta.value).then(() => scSetStatus("Scroll-scrub-prompt gekopieerd")).catch(() => {});
+  });
+  document.getElementById("sc-scrollscrub-download").addEventListener("click", () => {
+    downloadText((deal.naam || "prompt").replace(/[^\w-]+/g, "_") + "-scrollscrub-prompt.txt", ta.value);
+  });
+}
+
+function generateScrollScrubPrompt() {
+  const deal = state.deals.find(d => d.id === scDealId);
+  if (!deal) return;
+  const sc = ensureSalescall(deal);
+  const text = buildScrollScrubPrompt(deal);
+  if (!text) {
+    scSetStatus("Zet 'Scroll-scrub animatie relevant?' op Ja (of Nog te bepalen) en vul het onderwerp/de beweging in om een prompt te genereren.");
+    return;
+  }
+  sc.scrollScrubPrompt = text;
+  sc.scrollScrubPromptGeneratedAt = new Date().toISOString();
+  saveSalescall();
+  showScrollScrubPrompt(deal, text);
+  document.getElementById("sc-scrollscrub-wrap")?.scrollIntoView({ behavior: "smooth" });
 }
 
 on("sc-close", "click", closeSalescall);
