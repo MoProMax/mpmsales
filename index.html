@@ -2435,13 +2435,12 @@ const CALL_SECTIONS = [
   },
   {
     title: "9 · Scroll-scrub animatie (bouwfase)",
-    scrollScrubPrompt: true,
     guideTitle: "Alleen relevant bij een concreet visueel 'wow-moment'",
     guide: [
       "Optioneel — vul dit alleen in als bij 'Scroll-scrub animatie relevant?' hierboven Ja of Nog te bepalen is gekozen.",
       "Denk aan: een vallend object, in-elkaar-schuivende onderdelen, een opbouwende scene of een product-reveal die bij het product/de dienst van de klant past.",
-      "Hoe specifieker je hier bent (onderwerp, materiaal, beweging), hoe beter de gegenereerde animatie aansluit — dit wordt automatisch omgezet in een kant-en-klare prompt voor de bouwfase.",
-      "De knop onderaan bundelt deze antwoorden + de designwensen (kleur, merkgevoel, tempo, no-go's) tot één uitgebreide prompt voor de skill scroll-scrub-ai-rendering."
+      "Hoe specifieker je hier bent (onderwerp, materiaal, beweging), hoe beter de gegenereerde animatie aansluit.",
+      "Deze antwoorden worden automatisch — samen met de designwensen (kleur, merkgevoel, tempo, no-go's) — verwerkt tot de 'Prompt voor de videogenerator' in de functionaliteitenovereenkomst, direct te gebruiken voor de skill scroll-scrub-ai-rendering."
     ],
     questions: [
       { key: "scrollscrub_onderwerp", type: "textarea", sec: "motion", short: "Onderwerp/scene", label: "Wat is het onderwerp/product van de animatie?", hint: "wees zo specifiek mogelijk: voorwerp, vorm, kleur, materiaal", placeholder: "bv. een dakpan die op zijn plek valt en vastklikt, met regendruppels die afspatten" },
@@ -2495,7 +2494,7 @@ const AGREEMENT_ORDER = [
   { sec: "vindbaarheid", title: "5. VINDBAARHEID & SEO" },
   { sec: "design", title: "6. DESIGN & UITSTRALING" },
   { sec: "motion", title: "7. 3D & MOTION" },
-  { sec: "__scrollscrub__", title: "8. SCROLL-SCRUB ANIMATIE — PROMPT VOOR BOUWFASE" },
+  { sec: "__scrollscrub__", title: "8. PROMPT VOOR DE VIDEOGENERATOR" },
   { sec: "techniek", title: "9. TECHNIEK & HOSTING" },
   { sec: "__planning__", title: "10. PLANNING & INVESTERING" }
 ];
@@ -2716,9 +2715,6 @@ function renderSalescallBody(deal) {
         html += `<div class="sc-q"><label>${esc(q.label)}${qHint(q)}</label><textarea class="sc-answer" data-key="${esc(q.key)}" placeholder="${esc(q.placeholder || "")}">${esc(val || "")}</textarea></div>`;
       }
     });
-    if (sec.scrollScrubPrompt) {
-      html += `<button class="btn secondary" id="sc-gen-scrollscrub" type="button">Genereer scroll-scrub-prompt</button><div id="sc-scrollscrub-wrap"></div>`;
-    }
     html += `</div>`;
   });
 
@@ -2744,7 +2740,6 @@ function renderSalescallBody(deal) {
 
   body.innerHTML = html;
   if (sc.agreement) showAgreement(deal, sc.agreement);
-  if (sc.scrollScrubPrompt) showScrollScrubPrompt(deal, sc.scrollScrubPrompt);
 
   const pakketSel = document.getElementById("sc-pakket");
   const onderhoudSel = document.getElementById("sc-onderhoud");
@@ -2816,7 +2811,6 @@ function renderSalescallBody(deal) {
     saveSalescallDebounced(); renderSummary();
   });
   document.getElementById("sc-cb-save").addEventListener("click", () => scheduleCallback(deal));
-  document.getElementById("sc-gen-scrollscrub")?.addEventListener("click", generateScrollScrubPrompt);
 }
 
 // Terugbelafspraak: koppelt aan de bestaande opvolg-reminder + activiteitenlog.
@@ -2892,10 +2886,6 @@ function buildScrollScrubPrompt(deal) {
 
   const rule = "-".repeat(60);
   const L = [];
-  L.push("SCROLL-SCRUB VIDEO-PROMPT — input voor de skill 'scroll-scrub-ai-rendering'");
-  L.push("=".repeat(60));
-  L.push("Klant: " + (deal.naam || "") + (deal.branche ? " (" + deal.branche + ")" : ""));
-  L.push("");
   L.push("ONDERWERP & SCENE");
   L.push(rule);
   const typeList = Array.isArray(a.scrollscrub_type) ? a.scrollscrub_type.join(", ") : "";
@@ -2940,8 +2930,6 @@ function buildScrollScrubPrompt(deal) {
   L.push("- De video speelt NOOIT automatisch af. Uitsluitend scroll-scrub: elk frame wordt direct aan de scrollpositie gekoppeld, de bezoeker scrubt er zelf doorheen.");
   L.push("- Naadloos rustpunt bij het begin- en eindframe, zodat de scene stilstaat op de plek waar de bezoeker stopt met scrollen.");
   L.push("- Optimaliseer voor web (compressie/formaat) zonder zichtbaar kwaliteitsverlies op het belangrijkste moment van de animatie.");
-  L.push("");
-  L.push("Gebruik deze prompt als input voor de skill 'scroll-scrub-ai-rendering' bij het bouwen van deze website.");
   return L.join("\n");
 }
 
@@ -2982,9 +2970,12 @@ function buildAgreement(deal) {
       L.push(""); L.push(block.title); L.push(rule);
       rows.forEach(r => L.push(r));
     } else if (block.sec === "__scrollscrub__") {
-      if (!sc.scrollScrubPrompt) return; // alleen tonen als er echt een prompt gegenereerd is
+      const promptText = buildScrollScrubPrompt(deal);
+      if (!promptText) return; // alleen tonen als er echt een animatie-scene is ingevuld
       L.push(""); L.push(block.title); L.push(rule);
-      L.push(sc.scrollScrubPrompt);
+      L.push("Deze prompt is direct te gebruiken als input voor de skill scroll-scrub-ai-rendering bij de bouw van de website.");
+      L.push("");
+      L.push(promptText);
     } else {
       const rows = scAnswersForSec(sc, block.sec);
       if (!rows.length) return; // lege secties overslaan
@@ -3049,49 +3040,6 @@ function generateAgreement() {
   saveSalescall();
   showAgreement(deal, text);
   document.getElementById("sc-agreement-wrap")?.scrollIntoView({ behavior: "smooth" });
-}
-
-function showScrollScrubPrompt(deal, text) {
-  const wrap = document.getElementById("sc-scrollscrub-wrap");
-  if (!wrap) return;
-  if (!text) { wrap.innerHTML = ""; return; }
-  wrap.innerHTML = `
-    <div class="sc-guide" style="margin-top:10px;"><b>Klaar voor de bouwfase:</b> deze prompt is direct te gebruiken als input voor de skill <code>scroll-scrub-ai-rendering</code>. Corrigeer hieronder waar nodig; je wijzigingen worden bewaard.</div>
-    <textarea class="sc-agreement" id="sc-scrollscrub-text" rows="16" spellcheck="true">${esc(text)}</textarea>
-    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
-      <button class="btn secondary" id="sc-scrollscrub-copy" type="button">Kopieer</button>
-      <button class="btn secondary" id="sc-scrollscrub-download" type="button">Download .txt</button>
-      <span id="sc-scrollscrub-saved" class="hint2" style="margin-left:auto;"></span>
-    </div>`;
-  const ta = document.getElementById("sc-scrollscrub-text");
-  const savedNote = document.getElementById("sc-scrollscrub-saved");
-  ta.addEventListener("blur", () => {
-    ensureSalescall(deal).scrollScrubPrompt = ta.value;
-    saveSalescall();
-    if (savedNote) { savedNote.textContent = "Wijzigingen opgeslagen"; setTimeout(() => { if (savedNote.textContent === "Wijzigingen opgeslagen") savedNote.textContent = ""; }, 2500); }
-  });
-  document.getElementById("sc-scrollscrub-copy").addEventListener("click", () => {
-    navigator.clipboard?.writeText(ta.value).then(() => scSetStatus("Scroll-scrub-prompt gekopieerd")).catch(() => {});
-  });
-  document.getElementById("sc-scrollscrub-download").addEventListener("click", () => {
-    downloadText((deal.naam || "prompt").replace(/[^\w-]+/g, "_") + "-scrollscrub-prompt.txt", ta.value);
-  });
-}
-
-function generateScrollScrubPrompt() {
-  const deal = state.deals.find(d => d.id === scDealId);
-  if (!deal) return;
-  const sc = ensureSalescall(deal);
-  const text = buildScrollScrubPrompt(deal);
-  if (!text) {
-    scSetStatus("Zet 'Scroll-scrub animatie relevant?' op Ja (of Nog te bepalen) en vul het onderwerp/de beweging in om een prompt te genereren.");
-    return;
-  }
-  sc.scrollScrubPrompt = text;
-  sc.scrollScrubPromptGeneratedAt = new Date().toISOString();
-  saveSalescall();
-  showScrollScrubPrompt(deal, text);
-  document.getElementById("sc-scrollscrub-wrap")?.scrollIntoView({ behavior: "smooth" });
 }
 
 on("sc-close", "click", closeSalescall);
