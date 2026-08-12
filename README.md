@@ -1,6 +1,6 @@
 # MPM Sales — Mo Pro Max Revenue Platform
 
-Sales-dashboard voor mopromax.com: leads inbox, niet-lineaire sales/delivery-funnel (34 fases), deals-lijst, opvolg-reminders en activiteitenlog. Eén statisch `index.html`-bestand; alle data staat in Firebase Firestore (project `mpms-e59f8`, database `mpms1`).
+Sales-dashboard voor mopromax.com: leads inbox, compacte niet-lineaire sales/delivery-funnel (12 fases), deals-lijst, opvolg-reminders en activiteitenlog. Eén statisch `index.html`-bestand; alle data staat in Firebase Firestore (project `mpms-e59f8`, database `mpms1`).
 
 **Live:** https://mpmsales.onrender.com/ (Render, auto-deploy vanaf de `main`-branch van deze repo).
 

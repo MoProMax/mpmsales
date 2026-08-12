@@ -3,7 +3,7 @@
 {
   "name": "Mopromax Revenue Platform",
   "schemaVersion": 1,
-  "description": "Gecombineerd Mo Pro Max revenue platform: (1) een niet-lineaire sales/delivery funnel als flowchart met 34 fases en ~40 vertakkingen/loops/dead-ends/win-back-paden voor ontwerp, ontwikkeling, implementatie en onderhoud van websites, en (2) een leads-inbox met filters, een onderzoeksaanvraag-formulier (voor het laten ophalen van nieuwe leads via Claude/Google Maps) en select+verplaats-naar-funnel. Vervangt de eerdere twee losse artifacts. Data centraal opgeslagen in Firebase Firestore (geen localStorage).",
+  "description": "Gecombineerd Mo Pro Max revenue platform: (1) een compacte niet-lineaire sales/delivery funnel als flowchart met 12 fases en loops/dead-ends/win-back-paden voor acquisitie, verkoop, bouw en onderhoud van websites, en (2) een leads-inbox met filters, een onderzoeksaanvraag-formulier (voor het laten ophalen van nieuwe leads via Claude/Google Maps) en select+verplaats-naar-funnel. Vervangt de eerdere twee losse artifacts. Data centraal opgeslagen in Firebase Firestore (geen localStorage).",
   "mcpTools": [
     "mcp__scheduled-tasks__update_scheduled_task"
   ],
@@ -521,11 +521,9 @@
       </div>
       <div class="legend">
         <span><span class="dot" style="background:#64748b"></span>Acquisitie</span>
-        <span><span class="dot" style="background:#6366f1"></span>Ontdekking</span>
-        <span><span class="dot" style="background:#8b5cf6"></span>Voorstel</span>
-        <span><span class="dot" style="background:#3b82f6"></span>Ontwerp</span>
-        <span><span class="dot" style="background:#06b6d4"></span>Ontwikkeling</span>
-        <span><span class="dot" style="background:#14b8a6"></span>Implementatie</span>
+        <span><span class="dot" style="background:#6366f1"></span>Gesprek &amp; voorstel</span>
+        <span><span class="dot" style="background:#8b5cf6"></span>Resultaat</span>
+        <span><span class="dot" style="background:#14b8a6"></span>Bouw &amp; livegang</span>
         <span><span class="dot" style="background:#22c55e"></span>Onderhoud</span>
         <span><span class="dot" style="background:#d97706"></span>Nurture / win-back</span>
         <span><span class="dot" style="background:#dc2626"></span>Terminal &mdash; verloren</span>
@@ -864,88 +862,68 @@
 /* =========================================================================
    DATA MODEL: nodes & edges define the non-linear sales/delivery funnel
    ========================================================================= */
+// Compacte funnel (12 fases i.p.v. 34) — sales-detail behouden, de vroegere
+// losse project-microstappen (design/QA/UAT/livegang) samengevoegd tot twee
+// brede stappen. Nieuwe ID's starten bij 101 zodat ze nooit botsen met de
+// oude 1–34, wat de migratie in migrateDealNodes() onvoorwaardelijk veilig maakt.
 const NODES = [
-  { id: 1,  label: "Nieuwe lead",                        phase: 0, x: 40,   y: 40  },
-  { id: 2,  label: "Gekwalificeerd (MQL)",                phase: 0, x: 40,   y: 150 },
-  { id: 3,  label: "Gediskwalificeerd",                   phase: 0, x: 40,   y: 260, type: "terminal-lost" },
+  { id: 101, label: "Nieuwe lead",         phase: 0, x: 40,   y: 40  },
+  { id: 102, label: "Gekwalificeerd",      phase: 0, x: 40,   y: 160 },
 
-  { id: 4,  label: "Eerste contact gelegd",               phase: 1, x: 310,  y: 40  },
-  { id: 6,  label: "Kennismaking gepland",                phase: 1, x: 310,  y: 150 },
-  { id: 7,  label: "Behoefteanalyse afgerond",            phase: 1, x: 310,  y: 260 },
-  { id: 5,  label: "Geen reactie",                        phase: 1, x: 310,  y: 370, type: "nurture" },
-  { id: 8,  label: "Afgehaakt na analyse",                phase: 1, x: 310,  y: 480, type: "terminal-lost" },
+  { id: 103, label: "In gesprek",          phase: 1, x: 330,  y: 40  },
+  { id: 104, label: "Voorstel verstuurd",  phase: 1, x: 330,  y: 160 },
+  { id: 105, label: "Onderhandeling",      phase: 1, x: 330,  y: 280 },
 
-  { id: 9,  label: "Voorstel in opstelling",              phase: 2, x: 580,  y: 40  },
-  { id: 10, label: "Voorstel verstuurd",                  phase: 2, x: 580,  y: 150 },
-  { id: 11, label: "Onderhandeling",                      phase: 2, x: 580,  y: 260 },
-  { id: 14, label: "Deal gewonnen (intake)",               phase: 2, x: 580,  y: 370, type: "terminal-won" },
-  { id: 12, label: "Voorstel afgewezen",                  phase: 2, x: 580,  y: 480, type: "terminal-lost" },
-  { id: 13, label: "On hold / later opnieuw",             phase: 2, x: 580,  y: 590, type: "nurture" },
+  { id: 106, label: "Gewonnen",            phase: 2, x: 620,  y: 40,  type: "terminal-won" },
+  { id: 107, label: "Verloren",            phase: 2, x: 620,  y: 280, type: "terminal-lost" },
 
-  { id: 15, label: "Design in uitvoering",                phase: 3, x: 850,  y: 40  },
-  { id: 16, label: "Design ter review bij klant",         phase: 3, x: 850,  y: 150 },
-  { id: 17, label: "Wijzigingen gevraagd (design)",       phase: 3, x: 850,  y: 260, type: "nurture" },
-  { id: 18, label: "Design goedgekeurd",                  phase: 3, x: 850,  y: 370 },
-  { id: 19, label: "Afgehaakt tijdens design",            phase: 3, x: 850,  y: 480, type: "terminal-lost" },
+  { id: 108, label: "In productie",        phase: 3, x: 910,  y: 40  },
+  { id: 109, label: "Livegang",            phase: 3, x: 910,  y: 160 },
 
-  { id: 20, label: "Ontwikkeling gestart",                phase: 4, x: 1120, y: 40  },
-  { id: 21, label: "Interne QA",                          phase: 4, x: 1120, y: 150 },
-  { id: 22, label: "Klant UAT (acceptatietest)",          phase: 4, x: 1120, y: 260 },
-  { id: 23, label: "Wijzigingen gevraagd (ontwikkeling)", phase: 4, x: 1120, y: 370, type: "nurture" },
-  { id: 24, label: "Ontwikkeling afgerond",               phase: 4, x: 1120, y: 480 },
-  { id: 25, label: "Project stopgezet",                   phase: 4, x: 1120, y: 590, type: "terminal-lost" },
+  { id: 110, label: "Onderhoud actief",    phase: 4, x: 1200, y: 40,  type: "ongoing" },
 
-  { id: 26, label: "Implementatie gepland",               phase: 5, x: 1390, y: 40  },
-  { id: 27, label: "Livegang uitgevoerd",                 phase: 5, x: 1390, y: 150 },
-  { id: 28, label: "Issues na livegang",                  phase: 5, x: 1390, y: 260, type: "nurture" },
-  { id: 29, label: "Livegang succesvol",                  phase: 5, x: 1390, y: 370, type: "terminal-won" },
-
-  { id: 30, label: "Onderhoud voorgesteld",               phase: 6, x: 1660, y: 40  },
-  { id: 32, label: "Actief onderhoudscontract",           phase: 6, x: 1660, y: 150, type: "ongoing" },
-  { id: 31, label: "Onderhoud geweigerd",                 phase: 6, x: 1660, y: 260, type: "terminal-won" },
-  { id: 33, label: "Onderhoud opgezegd (churn)",          phase: 6, x: 1660, y: 370, type: "terminal-lost" },
-
-  { id: 34, label: "Win-back / opnieuw benaderen",        phase: 7, x: 850,  y: 750, type: "nurture" }
+  { id: 111, label: "Nurture / later",     phase: 5, x: 330,  y: 460, type: "nurture" },
+  { id: 112, label: "Gestopt",             phase: 5, x: 910,  y: 460, type: "terminal-lost" }
 ];
 
 const EDGES = [
-  [1,2],[1,3],
-  [2,4],
-  [4,6],[4,5],
-  [6,7],[6,5],
-  [7,9],[7,8],
-  [5,34],[8,34],
-  [9,10],
-  [10,11],[10,14],[10,12],
-  [11,14],[11,12],
-  [12,13],
-  [13,34],[13,2],
-  [14,15],
-  [15,16],
-  [16,18],[16,17],[16,19],
-  [17,15],
-  [18,20],
-  [20,21],
-  [21,22],[21,25],
-  [22,24],[22,23],
-  [23,20],
-  [24,26],
-  [26,27],
-  [27,29],[27,28],
-  [28,20],
-  [29,30],
-  [30,32],[30,31],
-  [32,33],
-  [33,34],
-  [34,6]
+  [101,102],[101,107],
+  [102,103],[102,107],
+  [103,104],[103,111],[103,107],
+  [104,105],[104,106],[104,107],[104,111],
+  [105,106],[105,107],
+  [106,108],
+  [108,109],[108,112],
+  [109,110],[109,111],
+  [110,112],
+  [111,103],
+  [107,111],
+  [112,111]
 ];
 
-const PROB = {1:5,2:10,3:0,4:15,5:8,6:20,7:30,8:0,9:35,10:40,11:55,12:0,13:12,14:90,
-  15:90,16:90,17:85,18:92,19:0,20:93,21:94,22:94,23:90,24:96,25:0,26:97,27:97,28:92,29:100,
-  30:98,31:100,32:100,33:0,34:12};
+const PROB = {101:5, 102:15, 103:25, 104:40, 105:55, 106:100, 107:0, 108:95, 109:98, 110:100, 111:10, 112:0};
 
-const PHASE_COLOR = ["#64748b","#6366f1","#8b5cf6","#3b82f6","#06b6d4","#14b8a6","#22c55e","#d97706"];
-const PHASE_NAME = ["Acquisitie","Ontdekking","Voorstel","Ontwerp","Ontwikkeling","Implementatie","Onderhoud","Nurture"];
+const PHASE_COLOR = ["#64748b","#6366f1","#8b5cf6","#14b8a6","#22c55e","#d97706"];
+const PHASE_NAME = ["Acquisitie","Gesprek & voorstel","Resultaat","Bouw & livegang","Onderhoud","Nurture"];
+
+// Eenmalige migratie: oude node-ID's (1–34, uit de vroegere 34-stappen-funnel)
+// -> nieuwe compacte ID's (101–112). Oude en nieuwe ID's overlappen bewust
+// niet, dus dit is onvoorwaardelijk veilig om elke keer opnieuw te draaien
+// (een deal die al op een nieuwe ID staat matcht geen sleutel en blijft ongewijzigd).
+const OLD_NODE_MIGRATION = {
+  1:101, 2:102, 3:107, 4:103, 5:111, 6:103, 7:103, 8:107, 9:104, 10:104,
+  11:105, 12:107, 13:111, 14:106, 15:108, 16:108, 17:108, 18:108, 19:112,
+  20:108, 21:108, 22:108, 23:108, 24:108, 25:112, 26:109, 27:109, 28:109,
+  29:109, 30:109, 31:109, 32:110, 33:112, 34:111
+};
+function migrateDealNodes(deals) {
+  let changed = false;
+  deals.forEach(d => {
+    const mapped = OLD_NODE_MIGRATION[d.node];
+    if (mapped !== undefined) { d.node = mapped; changed = true; }
+  });
+  return changed;
+}
 
 const NODE_W = 210, NODE_H = 62;
 const nodeById = Object.fromEntries(NODES.map(n => [n.id, n]));
@@ -1424,6 +1402,9 @@ async function fbInit() {
     state = remote;
     lastLeadsSignature = leadsSignature(state.inboxLeads);
     firebaseReady = true;
+    // Eenmalige migratie naar de compacte funnel — schrijft direct terug naar
+    // Firestore zodat oude node-ID's daar niet blijven hangen.
+    if (migrateDealNodes(state.deals)) saveState();
     fbSetStatus(
       "Firebase: gesynchroniseerd " + new Date().toLocaleTimeString("nl-NL") +
       " (" + state.inboxLeads.length + " leads)", true
@@ -1559,11 +1540,11 @@ try {
 function renderSummary() {
   const deals = state.deals;
   const activeDeals = deals.filter(d => nodeType(nodeById[d.node]) !== "terminal-lost");
-  const wonOrOngoing = deals.filter(d => [14,29,31,32].includes(d.node));
+  const wonOrOngoing = deals.filter(d => [106,109,110].includes(d.node));
   const lost = deals.filter(d => nodeType(nodeById[d.node]) === "terminal-lost");
   const pipelineValue = activeDeals.reduce((s,d) => s + (Number(d.waarde)||0), 0);
   const weighted = activeDeals.reduce((s,d) => s + (Number(d.waarde)||0) * (PROB[d.node]||0)/100, 0);
-  const mrr = deals.filter(d => d.node === 32).reduce((s,d) => s + (Number(d.onderhoud)||0), 0);
+  const mrr = deals.filter(d => d.node === 110).reduce((s,d) => s + (Number(d.onderhoud)||0), 0);
   const closedTotal = wonOrOngoing.length + lost.length;
   const winRate = closedTotal > 0 ? Math.round((wonOrOngoing.length / closedTotal) * 100) : 0;
   const attention = deals.filter(d => dealStatus(d) === "active" && (dealIsStale(d) || dealFollowUpOverdue(d))).length;
@@ -1573,7 +1554,7 @@ function renderSummary() {
     { label: "Actieve deals", value: activeDeals.length, sub: `${deals.length} totaal ooit ingeladen` , accent:false},
     { label: "Pipeline waarde", value: fmtEuro(pipelineValue), sub: "actieve eenmalige waarde", accent:true },
     { label: "Gewogen forecast", value: fmtEuro(weighted), sub: "waarde × winkans per fase", accent:true },
-    { label: "MRR onderhoud", value: fmtEuro(mrr) + "/mnd", sub: `${deals.filter(d=>d.node===32).length} actieve contracten`, accent:true },
+    { label: "MRR onderhoud", value: fmtEuro(mrr) + "/mnd", sub: `${deals.filter(d=>d.node===110).length} actieve contracten`, accent:true },
     { label: "Win rate", value: winRate + "%", sub: `${wonOrOngoing.length} gewonnen / ${lost.length} verloren`, accent:false },
     { label: "Aandacht nodig", value: attention, sub: "stilstaand of opvolging verlopen", accent:false }
   ];
