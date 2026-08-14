@@ -327,6 +327,7 @@
   .sc-queue-item .stage-age { margin-top: 4px; }
   .sc-workspace { min-width: 0; }
   .sc-sticky-head { position: sticky; top: 0; z-index: 8; background: var(--bg); padding-top: 4px; padding-bottom: 12px; margin-bottom: 4px; border-bottom: 1px solid var(--border); box-shadow: 0 4px 10px rgb(var(--shadow-rgb) / 0.05); }
+  #sc-outcome-bar { scroll-margin-top: 130px; }
   .sc-page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
   .sc-page-head h2 { margin: 0; font-size: 19px; }
   .sc-page-head .sub { color: var(--text-secondary); font-size: 12.5px; margin-top: 2px; }
@@ -884,25 +885,28 @@
       <div id="sc-empty-state" class="empty-msg" style="padding:60px 20px;">Kies een lead uit de wachtrij hiernaast om te beginnen.</div>
 
       <div id="sc-active-lead" style="display:none;">
+        <!-- Compacte, altijd vastgeplakte navigatie: naam, stappen, snelkoppeling
+             naar afboeken. Blijft klein genoeg om op elk scherm te passen. -->
         <div class="sc-sticky-head">
           <div class="sc-page-head">
             <div>
               <h2 id="sc-title">Cliëntanalyse</h2>
               <div class="sub" id="sc-subtitle"></div>
             </div>
-            <button class="btn secondary" id="sc-next-lead-btn" type="button">Volgende lead &rarr;</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn danger" id="sc-jump-afboek-btn" type="button">&darr; Afboeken</button>
+              <button class="btn secondary" id="sc-next-lead-btn" type="button">Volgende lead &rarr;</button>
+            </div>
           </div>
-
           <div class="sc-steptabs">
             <button type="button" class="sc-steptab active" data-step="1">1 &middot; Salescall &amp; Cliëntanalyse</button>
             <button type="button" class="sc-steptab" data-step="2">2 &middot; Offerte</button>
           </div>
-
-          <div id="sc-outcome-bar"></div>
         </div>
 
         <!-- STAP 1 -->
         <div class="sc-step" id="sc-step-1">
+          <div id="sc-outcome-bar"></div>
           <div class="sc-body" id="salescall-body"></div>
         </div>
 
@@ -2905,9 +2909,12 @@ function setSalescallStep(step) {
   document.querySelectorAll(".sc-steptab").forEach(t => t.classList.toggle("active", Number(t.dataset.step) === step));
   document.getElementById("sc-step-1").style.display = step === 1 ? "" : "none";
   document.getElementById("sc-step-2").style.display = step === 2 ? "" : "none";
-  document.getElementById("sc-outcome-bar").style.display = step === 1 ? "" : "none";
+  document.getElementById("sc-jump-afboek-btn").style.display = step === 1 ? "" : "none";
 }
 document.querySelectorAll(".sc-steptab").forEach(t => t.addEventListener("click", () => setSalescallStep(Number(t.dataset.step))));
+on("sc-jump-afboek-btn", "click", () => {
+  document.getElementById("sc-outcome-bar")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 
 // Wachtrij: alle deals die nog een salescall-stap nodig hebben, achterstallige
 // opvolging/langst-stilstaand eerst, zodat je nooit hoeft te kiezen wie eerst.
