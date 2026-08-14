@@ -3045,7 +3045,13 @@ on("sc-next-lead-btn", "click", () => {
 function renderOutcomeBar(deal) {
   const bar = document.getElementById("sc-outcome-bar");
   if (!bar) return;
-  const nextIds = outgoing(deal.node).filter(id => id !== 209 && id !== 210);
+  // "Offerte verstuurd" (204) mag nooit via de generieke vooruit-knop bereikt
+  // worden — dat sloeg de daadwerkelijke generatie/verzending van de offerte
+  // over. De enige weg daarheen is de knop "Markeer als verstuurd" op het
+  // Offerte-tabblad, die zelf ook afdwingt dat er eerst een overeenkomst
+  // gegenereerd is.
+  const skipDocGate = deal.node === 203;
+  const nextIds = outgoing(deal.node).filter(id => id !== 209 && id !== 210 && !(skipDocGate && id === 204));
   const redenen = AFBOEK_REDENEN[deal.node] || [];
   const isLater = LATER_NODES.includes(deal.node);
 
@@ -3055,6 +3061,7 @@ function renderOutcomeBar(deal) {
         <div class="oc-zone-label">Vooruit</div>
         <div class="oc-zone-row">
           ${nextIds.map(id => `<button type="button" class="oc-forward-btn" data-target="${id}">${esc(nodeById[id].label)} &rarr;</button>`).join("") || `<span class="hint2">Geen vervolgstap gedefinieerd vanuit deze fase.</span>`}
+          ${skipDocGate ? `<span class="hint2">Ga naar het tabblad &ldquo;2 &middot; Offerte&rdquo; hierboven om de overeenkomst te genereren en te versturen — dat schuift de deal automatisch door.</span>` : ""}
         </div>
       </div>
       ${isLater ? `<div class="oc-zone oc-zone-later">
@@ -3250,6 +3257,10 @@ function renderKlaarBody(deal) {
 on("sc-mark-sent-btn", "click", () => {
   const deal = state.deals.find(d => d.id === scDealId);
   if (!deal) return;
+  if (!deal.salescall?.agreement) {
+    alert("Genereer eerst de functionaliteitenovereenkomst (knop hierboven) voordat je 'm als verstuurd markeert.");
+    return;
+  }
   if (!Array.isArray(deal.activiteiten)) deal.activiteiten = [];
   deal.activiteiten.push({ at: new Date().toISOString(), type: "Gemaild", text: "Offerte + functionaliteitenovereenkomst verstuurd" });
   if (deal.node !== 204 && outgoing(deal.node).includes(204)) attemptMoveWithReason(deal, deal.node, 204, "");
