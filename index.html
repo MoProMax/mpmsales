@@ -384,6 +384,13 @@
   .sc-hours-time { width: 84px; padding: 5px 6px; border: 1px solid var(--border-strong); border-radius: 6px; font-size: 12px; background: var(--surface); color: var(--text); }
   @media (max-width: 640px) { .sc-hours-row { grid-template-columns: 1fr; } }
   .sc-callback { background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: 10px; padding: 12px 14px; }
+  .sc-aanp-list { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+  .sc-aanp-row { display: grid; grid-template-columns: auto 1fr 140px auto; gap: 8px; align-items: center; }
+  .sc-aanp-row .sc-aanp-tekst { padding: 7px 9px; border: 1px solid var(--border-strong); border-radius: 6px; font-size: 12.5px; background: var(--surface); color: var(--text); }
+  .sc-aanp-row .sc-aanp-datum { padding: 6px 7px; border: 1px solid var(--border-strong); border-radius: 6px; font-size: 12px; background: var(--surface); color: var(--text); }
+  .sc-aanp-del { border: none; background: transparent; color: var(--text-tertiary); font-size: 16px; cursor: pointer; padding: 0 4px; line-height: 1; }
+  .sc-aanp-del:hover { color: var(--danger); }
+  @media (max-width: 640px) { .sc-aanp-row { grid-template-columns: auto 1fr auto; } .sc-aanp-row .sc-aanp-datum { grid-column: 2 / 3; } }
   /* Designwensen — aanklikbare chips */
   .sc-brief-group { border-top: 1px dashed var(--border); padding-top: 14px; margin-top: 6px; }
   .sc-brief-group:first-child { border-top: none; padding-top: 0; margin-top: 0; }
@@ -907,11 +914,6 @@
           <div class="sc-steptabs" id="sc-steptabs"></div>
         </div>
 
-        <!-- Uitkomst-balk staat altijd bovenaan, ongeacht welke stap je bekijkt:
-             dit is precies waar de vorige klacht ("waar zijn de checkboxes")
-             vandaan kwam — hij mag nooit ergens diep in een stap verstopt zitten. -->
-        <div id="sc-outcome-bar"></div>
-
         <!-- STAP 1: Salescall & Cliëntanalyse -->
         <div class="sc-stage-pane" data-stage="call">
           <div class="sc-body" id="salescall-body"></div>
@@ -935,15 +937,25 @@
           <div id="sc-betaling-body"></div>
         </div>
 
-        <!-- STAP 4: Controle & oplevering -->
-        <div class="sc-stage-pane" data-stage="oplevering" style="display:none;">
-          <div id="sc-oplevering-body"></div>
+        <!-- STAP 4: Controle -->
+        <div class="sc-stage-pane" data-stage="controle" style="display:none;">
+          <div id="sc-controle-body"></div>
         </div>
 
-        <!-- STAP 5: Opgeleverd -->
+        <!-- STAP 5: Aanpassingen -->
+        <div class="sc-stage-pane" data-stage="aanpassingen" style="display:none;">
+          <div id="sc-aanpassingen-body"></div>
+        </div>
+
+        <!-- STAP 6: Opgeleverd -->
         <div class="sc-stage-pane" data-stage="klaar" style="display:none;">
           <div id="sc-klaar-body"></div>
         </div>
+
+        <!-- Uitkomst-balk: onderaan de pagina, ná de inhoud van de huidige
+             stap — niet bovenaan, dat voelde als een blokkade vóór je iets
+             had kunnen invullen. -->
+        <div id="sc-outcome-bar"></div>
       </div>
     </div>
 
@@ -967,8 +979,9 @@ const NODES = [
   { id: 204, label: "Offerte verstuurd",        phase: 1, x: 330,  y: 160 },
   { id: 205, label: "Betaald / geaccepteerd",   phase: 1, x: 330,  y: 280 },
 
-  { id: 206, label: "Controle & oplevering",    phase: 2, x: 620,  y: 40  },
-  { id: 207, label: "Opgeleverd",               phase: 2, x: 620,  y: 160, type: "terminal-won" },
+  { id: 301, label: "Controle",                 phase: 2, x: 620,  y: 0   },
+  { id: 302, label: "Aanpassingen",             phase: 2, x: 620,  y: 90  },
+  { id: 207, label: "Opgeleverd",               phase: 2, x: 620,  y: 180, type: "terminal-won" },
 
   { id: 208, label: "Onderhoud actief",         phase: 3, x: 910,  y: 40,  type: "ongoing" },
 
@@ -981,12 +994,13 @@ const EDGES = [
   [202,203],[202,209],
   [203,204],[203,209],
   [204,205],[204,209],
-  [205,206],[205,210],
-  [206,207],[206,210],
+  [205,301],[205,210],
+  [301,302],[301,207],[301,210],
+  [302,207],[302,210],
   [207,208]
 ];
 
-const PROB = {201:5, 202:15, 203:30, 204:45, 205:90, 206:96, 207:100, 208:100, 209:0, 210:0};
+const PROB = {201:5, 202:15, 203:30, 204:45, 205:90, 301:95, 302:96, 207:100, 208:100, 209:0, 210:0};
 
 const PHASE_COLOR = ["#64748b","#3538CD","#14b8a6","#22c55e","#A83A2E"];
 const PHASE_NAME = ["Acquisitie","Verkoop","Levering","Onderhoud","Afgeboekt"];
@@ -995,7 +1009,7 @@ const PHASE_NAME = ["Acquisitie","Verkoop","Levering","Onderhoud","Afgeboekt"];
 // "Aanpassingen" (revisieronde) horen — puur voor de UI-tekst, geen edges:
 // de deal blijft simpelweg op zijn huidige node staan.
 const LATER_NODES = [202, 203, 204];
-const AANPASSINGEN_NODE = 206;
+const AANPASSINGEN_NODE = 302;
 
 // Per fase de vaste, specifieke afboekredenen (checkbox-lijst, bewust géén
 // vrij "anders"-veld — dat levert een data-analist achteraf niets op).
@@ -1060,13 +1074,21 @@ const AFBOEK_REDENEN = {
     "Bedrijf gaat alsnog failliet vlak na ondertekening",
     "Blijkt dubbel geplaatst — kiest alsnog voor een ander"
   ],
-  206: [
-    "Stopgezet door de klant tijdens de bouw",
+  301: [
+    "Stopgezet door de klant tijdens de controlefase",
     "Stopgezet door Mo Pro Max — bv. herhaaldelijke non-betaling",
-    "Klant onbereikbaar tijdens oplevering",
+    "Klant onbereikbaar voor de opleverstap",
     "Klant weigert noodzakelijke toegang te geven — bv. domein/hosting",
     "Structurele scope-uitbreiding zonder overeenstemming",
     "Bedrijf failliet of onvindbaar tijdens de bouw"
+  ],
+  302: [
+    "Stopgezet door de klant tijdens de aanpassingsronde",
+    "Stopgezet door Mo Pro Max — bv. herhaaldelijke non-betaling",
+    "Klant onbereikbaar tijdens de aanpassingsronde",
+    "Klant blijft eisen buiten scope stellen zonder aanvullend budget",
+    "Eindeloze aanpassingsronde zonder zicht op akkoord",
+    "Bedrijf failliet of onvindbaar tijdens de aanpassingen"
   ]
 };
 
@@ -1085,12 +1107,19 @@ const MID_NODE_MIGRATION = {
   101:201, 102:202, 103:203, 104:204, 105:204,
   106:205, 107:209, 108:206, 109:207, 110:208, 111:202, 112:210
 };
+// v4 — "Controle & oplevering" (206) gesplitst in twee losse stappen:
+// Controle (301) en Aanpassingen (302). Bestaande deals op 206 landen op
+// 301, de veiligste kant van de knip (nog niets specifieks over eventuele
+// aanpassingen bekend).
+const V4_NODE_MIGRATION = { 206: 301 };
 function migrateDealNodes(deals) {
   let changed = false;
   deals.forEach(d => {
     let mapped = OLD_NODE_MIGRATION[d.node];
     if (mapped !== undefined) { d.node = mapped; changed = true; }
     mapped = MID_NODE_MIGRATION[d.node];
+    if (mapped !== undefined) { d.node = mapped; changed = true; }
+    mapped = V4_NODE_MIGRATION[d.node];
     if (mapped !== undefined) { d.node = mapped; changed = true; }
   });
   return changed;
@@ -1661,13 +1690,18 @@ function moveDeal(deal, target) {
 // op precies één plek staat. Retourneert true bij een geslaagde verplaatsing.
 function attemptMoveWithReason(deal, fromNode, target, reason) {
   if (!deal || !target) return false;
+  if (!Array.isArray(deal.activiteiten)) deal.activiteiten = [];
+  const now = new Date().toISOString();
   if (target === 209 || target === 210) {
     if (!reason) { alert("Kies eerst een afboekreden — dit is verplicht voor de data-analyse."); return false; }
     deal.afboekReden = reason;
     deal.afboekVanNode = fromNode;
-    deal.afboekOp = new Date().toISOString();
-    if (!Array.isArray(deal.activiteiten)) deal.activiteiten = [];
-    deal.activiteiten.push({ at: deal.afboekOp, type: "Notitie", text: "Afgeboekt (" + nodeById[target].label + "): " + reason });
+    deal.afboekOp = now;
+    deal.activiteiten.push({ at: now, type: "Notitie", text: "Afgeboekt (" + nodeById[target].label + "): " + reason });
+  } else {
+    // Elke stap-overgang loggen (niet alleen afboekingen) zodat het hele
+    // traject achteraf controleerbaar is vanuit het activiteitenlog.
+    deal.activiteiten.push({ at: now, type: "Notitie", text: (nodeById[fromNode]?.label || fromNode) + " → " + (nodeById[target]?.label || target) });
   }
   if (!moveDeal(deal, target)) return false;
   saveState();
@@ -1731,7 +1765,7 @@ try {
 function renderSummary() {
   const deals = state.deals;
   const activeDeals = deals.filter(d => nodeType(nodeById[d.node]) !== "terminal-lost");
-  const wonOrOngoing = deals.filter(d => [205,206,207,208].includes(d.node));
+  const wonOrOngoing = deals.filter(d => [205,301,302,207,208].includes(d.node));
   const lost = deals.filter(d => nodeType(nodeById[d.node]) === "terminal-lost");
   const pipelineValue = activeDeals.reduce((s,d) => s + (Number(d.waarde)||0), 0);
   const weighted = activeDeals.reduce((s,d) => s + (Number(d.waarde)||0) * (PROB[d.node]||0)/100, 0);
@@ -2901,17 +2935,18 @@ function syncServicesToDeal(deal) {
 // afgeboekt (209/210) of in onderhoud (208) staat, is de wachtrij klaar met
 // die lead — dat gebeurt buiten dit traject-scherm.
 const SC_STAGES = [
-  { key: "call",       nodes: [201, 202, 203], tabLabel: "Salescall & Cliëntanalyse" },
-  { key: "offerte",    nodes: [204],           tabLabel: "Offerte" },
-  { key: "betaling",   nodes: [205],           tabLabel: "Betaald / geaccepteerd" },
-  { key: "oplevering", nodes: [206],           tabLabel: "Controle & oplevering" },
-  { key: "klaar",      nodes: [207],           tabLabel: "Opgeleverd" }
+  { key: "call",         nodes: [201, 202, 203], tabLabel: "Salescall & Cliëntanalyse" },
+  { key: "offerte",      nodes: [204],           tabLabel: "Offerte" },
+  { key: "betaling",     nodes: [205],           tabLabel: "Betaald / geaccepteerd" },
+  { key: "controle",     nodes: [301],           tabLabel: "Controle" },
+  { key: "aanpassingen", nodes: [302],           tabLabel: "Aanpassingen" },
+  { key: "klaar",        nodes: [207],           tabLabel: "Opgeleverd" }
 ];
 function scStageForNode(node) { return SC_STAGES.find(s => s.nodes.includes(node)) || SC_STAGES[0]; }
 
 // Nodes die nog een traject-stap nodig hebben (vóór onderhoud/afboeking) —
 // dit is de wachtrij op de Traject-pagina.
-const SALESCALL_QUEUE_NODES = [201, 202, 203, 204, 205, 206, 207];
+const SALESCALL_QUEUE_NODES = [201, 202, 203, 204, 205, 301, 302, 207];
 
 function openSalescall(dealId) {
   const deal = state.deals.find(d => d.id === dealId);
@@ -2936,7 +2971,8 @@ function loadSalescallLead(dealId) {
   renderSalescallBody(deal);
   renderOutcomeBar(deal);
   renderBetalingBody(deal);
-  renderOpleveringBody(deal);
+  renderControleBody(deal);
+  renderAanpassingenBody(deal);
   renderKlaarBody(deal);
   const wrap = document.getElementById("sc-agreement-step-wrap");
   if (wrap) wrap.innerHTML = "";
@@ -2944,7 +2980,7 @@ function loadSalescallLead(dealId) {
   renderSalescallQueue();
 }
 
-// Stappenbalk: alle 5 fases altijd zichtbaar, zodat duidelijk is dat het
+// Stappenbalk: alle 6 fases altijd zichtbaar, zodat duidelijk is dat het
 // traject verder gaat dan alleen het gesprek — voltooide stappen krijgen een
 // vinkje, de huidige stap is actief gemarkeerd. Elke tab is los te bekijken
 // (bijv. terugkijken naar de cliëntanalyse), maar de acties in de
@@ -3057,7 +3093,7 @@ function renderOutcomeBar(deal) {
   });
   confirmBtn?.addEventListener("click", () => {
     if (!selectedReason) return;
-    const target = deal.node === 205 || deal.node === 206 ? 210 : 209;
+    const target = [205, 301, 302].includes(deal.node) ? 210 : 209;
     if (attemptMoveWithReason(deal, deal.node, target, selectedReason)) { renderAll(); document.getElementById("sc-next-lead-btn")?.click(); }
   });
 }
@@ -3118,34 +3154,82 @@ function renderBetalingBody(deal) {
   wireScAnswerInputs(el, sc, deal);
 }
 
-// STAP 4: Controle & oplevering — opleverchecklist. Blijft desnoods meerdere
-// aanpassingsrondes op deze node staan (AANPASSINGEN_NODE), geen afboeking
-// nodig zolang er nog aan gewerkt wordt.
-function renderOpleveringBody(deal) {
-  const el = document.getElementById("sc-oplevering-body");
+// STAP 4: Controle — interne QA vóór het naar de klant gaat. Los van
+// "Aanpassingen" (stap 5): dit is de check die MoProMax zelf doet, nog
+// voordat de klant iets te zien krijgt.
+function renderControleBody(deal) {
+  const el = document.getElementById("sc-controle-body");
   if (!el) return;
   const sc = ensureSalescall(deal);
   el.innerHTML = `
     <div class="sc-sec">
-      <h3>Controle &amp; oplevering</h3>
-      <div class="sc-guide"><b>Checklist vóór oplevering:</b><ul>
+      <h3>Controle</h3>
+      <div class="sc-guide"><b>Interne checklist vóór oplevering aan de klant:</b><ul>
         <li>Technische controle: werkt alles, ook op mobiel?</li>
         <li>Content/teksten: geen placeholder-tekst of dummy-content meer?</li>
-        <li>Klant heeft een preview/terugkoppeling gehad en kan feedback geven.</li>
-        <li>Pas als de klant écht akkoord is op de oplevering ga je vooruit naar "Opgeleverd".</li>
+        <li>Pas als dit rond is: stuur door naar de klant en ga vooruit naar "Aanpassingen" om diens reactie te verwerken.</li>
       </ul></div>
-      ${scCheckField(sc, "oplevering_technisch", "Technische controle uitgevoerd")}
-      ${scCheckField(sc, "oplevering_content", "Content &amp; teksten gecontroleerd")}
-      ${scCheckField(sc, "oplevering_feedback_client", "Terugkoppeling/preview naar klant verstuurd")}
-      ${scCheckField(sc, "oplevering_akkoord_klant", "Klant heeft definitief akkoord gegeven op oplevering")}
-      ${scDateField(sc, "oplevering_datum", "Geplande opleverdatum")}
-      ${scNoteField(sc, "oplevering_notitie", "Aanpassingen / revisieronde", "wat is er nog aangepast, welke ronde zijn we...")}
+      ${scCheckField(sc, "controle_technisch", "Technische controle uitgevoerd")}
+      ${scCheckField(sc, "controle_content", "Content &amp; teksten gecontroleerd")}
+      ${scCheckField(sc, "controle_intern_akkoord", "Interne QA afgerond — klaar om naar klant te sturen")}
+      ${scDateField(sc, "controle_datum", "Datum controle afgerond")}
+      ${scNoteField(sc, "controle_notitie", "Bevindingen / interne notities", "wat is er gecontroleerd, welke issues zijn al opgelost...")}
     </div>`;
   wireScAnswerInputs(el, sc, deal);
 }
 
-// STAP 5: Opgeleverd — bevestiging + notitie; de knop "Onderhoud actief →"
-// in de uitkomst-balk hierboven sluit het traject voor deze lead af.
+// STAP 5: Aanpassingen — de revisieronde(s) met de klant. Eigen systeem van
+// invulvelden: elke terugkoppeling van de klant is een losse regel die je
+// als afgehandeld kunt afvinken, zodat je altijd ziet wat er nog open staat
+// over meerdere rondes heen (AANPASSINGEN_NODE — blijft hier staan tot alles
+// is afgehandeld, geen afboeking nodig zolang er nog aan gewerkt wordt).
+function renderAanpassingenBody(deal) {
+  const el = document.getElementById("sc-aanpassingen-body");
+  if (!el) return;
+  const sc = ensureSalescall(deal);
+  if (!Array.isArray(sc.answers.aanpassingen_items)) sc.answers.aanpassingen_items = [];
+  const items = sc.answers.aanpassingen_items;
+
+  const rowsHtml = items.length ? items.map((it, i) => `
+    <div class="sc-aanp-row" data-idx="${i}">
+      <input type="checkbox" class="sc-aanp-done" ${it.klaar ? "checked" : ""} title="Afgehandeld">
+      <input type="text" class="sc-aanp-tekst" value="${esc(it.tekst || "")}" placeholder="bijv. logo iets groter op de homepage">
+      <input type="date" class="sc-aanp-datum" value="${esc(it.datum || "")}">
+      <button type="button" class="sc-aanp-del" title="Verwijderen">&times;</button>
+    </div>`).join("") : `<div class="hint2" style="padding:4px 0;">Nog geen aanpassingen geregistreerd.</div>`;
+
+  el.innerHTML = `
+    <div class="sc-sec">
+      <h3>Aanpassingen</h3>
+      <div class="sc-guide">Log hier elk aanpassingsverzoek van de klant als losse regel. Vink af zodra een aanpassing is doorgevoerd — pas als álles is afgevinkt en de klant akkoord is, ga je vooruit naar "Opgeleverd".</div>
+      <div class="sc-aanp-list" id="sc-aanp-list">${rowsHtml}</div>
+      <button type="button" class="btn secondary small" id="sc-aanp-add" style="margin-top:8px;">+ Aanpassing toevoegen</button>
+      ${scCheckField(sc, "aanpassingen_feedback_verstuurd", "Terugkoppeling naar klant verstuurd")}
+      ${scCheckField(sc, "aanpassingen_klant_akkoord", "Klant heeft definitief akkoord gegeven")}
+      ${scNoteField(sc, "aanpassingen_notitie", "Algemene notitie", "overige afspraken over de aanpassingsronde...")}
+    </div>`;
+
+  const saveItems = () => { sc.answers.aanpassingen_items = items; saveSalescallDebounced(); };
+  const wireRows = () => {
+    el.querySelectorAll(".sc-aanp-row").forEach(row => {
+      const idx = Number(row.dataset.idx);
+      row.querySelector(".sc-aanp-done").addEventListener("change", e => { items[idx].klaar = e.target.checked; saveItems(); });
+      row.querySelector(".sc-aanp-tekst").addEventListener("input", e => { items[idx].tekst = e.target.value; saveItems(); });
+      row.querySelector(".sc-aanp-datum").addEventListener("change", e => { items[idx].datum = e.target.value; saveItems(); });
+      row.querySelector(".sc-aanp-del").addEventListener("click", () => { items.splice(idx, 1); saveItems(); renderAanpassingenBody(deal); });
+    });
+  };
+  wireRows();
+  document.getElementById("sc-aanp-add").addEventListener("click", () => {
+    items.push({ tekst: "", klaar: false, datum: "" });
+    saveItems();
+    renderAanpassingenBody(deal);
+  });
+  wireScAnswerInputs(el, sc, deal);
+}
+
+// STAP 6: Opgeleverd — bevestiging + notitie; de knop "Onderhoud actief →"
+// in de uitkomst-balk hieronder sluit het traject voor deze lead af.
 function renderKlaarBody(deal) {
   const el = document.getElementById("sc-klaar-body");
   if (!el) return;
@@ -3529,6 +3613,29 @@ function downloadText(filename, text) {
   URL.revokeObjectURL(a.href);
 }
 
+// Geen PDF-library nodig (geen build-stap, alles moet in één statisch
+// bestand blijven werken) — gebruikt de eigen "opslaan als PDF"-optie van
+// de browser via het printdialoog, met een nette printopmaak.
+function downloadAgreementPdf(deal, text) {
+  const win = window.open("", "_blank");
+  if (!win) { alert("Pop-up geblokkeerd — sta pop-ups toe voor deze site om als PDF te downloaden, of gebruik \"Download .txt\"."); return; }
+  const title = "Functionaliteitenovereenkomst — " + (deal.naam || "");
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+    <style>
+      body { font-family: "Segoe UI", Arial, sans-serif; color: #16171b; padding: 48px; max-width: 720px; margin: 0 auto; }
+      h1 { font-size: 18px; margin: 0 0 2px; }
+      .meta { color: #666; font-size: 12px; margin-bottom: 28px; }
+      pre { white-space: pre-wrap; word-wrap: break-word; font-family: "Segoe UI", Arial, sans-serif; font-size: 12.5px; line-height: 1.6; margin: 0; }
+      @media print { body { padding: 0; max-width: none; } }
+    </style></head><body>
+    <h1>${esc(title)}</h1>
+    <div class="meta">Mo Pro Max &middot; gegenereerd ${esc(new Date().toLocaleDateString("nl-NL"))}</div>
+    <pre>${esc(text)}</pre>
+    <script>window.onload = function () { window.print(); };<\/script>
+    </body></html>`);
+  win.document.close();
+}
+
 function showAgreement(deal, text) {
   const body = document.getElementById("sc-agreement-step-wrap");
   if (!body) return;
@@ -3540,6 +3647,7 @@ function showAgreement(deal, text) {
     <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
       <button class="btn secondary" id="sc-copy" type="button">Kopieer</button>
       <button class="btn secondary" id="sc-download" type="button">Download .txt</button>
+      <button class="btn secondary" id="sc-download-pdf" type="button">Download PDF</button>
       <span id="sc-agreement-saved" class="hint2" style="margin-left:auto;"></span>
     </div>`;
   const ta = document.getElementById("sc-agreement-text");
@@ -3553,6 +3661,9 @@ function showAgreement(deal, text) {
   ta.addEventListener("blur", persistEdits);
   document.getElementById("sc-copy").addEventListener("click", () => {
     navigator.clipboard?.writeText(ta.value).then(() => scSetStatus("Overeenkomst gekopieerd")).catch(() => {});
+  });
+  document.getElementById("sc-download-pdf").addEventListener("click", () => {
+    downloadAgreementPdf(deal, ta.value);
   });
   document.getElementById("sc-download").addEventListener("click", () => {
     downloadText((deal.naam || "overeenkomst").replace(/[^\w-]+/g, "_") + "-overeenkomst.txt", ta.value);
