@@ -331,9 +331,15 @@
   .sc-page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
   .sc-page-head h2 { margin: 0; font-size: 19px; }
   .sc-page-head .sub { color: var(--text-secondary); font-size: 12.5px; margin-top: 2px; }
-  .sc-steptabs { display: flex; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; margin-bottom: 16px; width: fit-content; }
-  .sc-steptab { border: none; background: transparent; padding: 8px 16px; font-size: 12.5px; font-weight: 600; border-radius: 7px; cursor: pointer; color: var(--text-secondary); }
+  .sc-steptabs { display: flex; gap: 6px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; width: fit-content; max-width: 100%; }
+  .sc-steptab { border: none; background: transparent; padding: 7px 13px; font-size: 12px; font-weight: 600; border-radius: 7px; cursor: pointer; color: var(--text-tertiary); white-space: nowrap; }
+  .sc-steptab .n { display: inline-block; width: 16px; height: 16px; line-height: 16px; border-radius: 50%; background: var(--border-strong); color: var(--surface); font-size: 10px; text-align: center; margin-right: 5px; }
+  .sc-steptab.upcoming { color: var(--text-tertiary); }
+  .sc-steptab.done { color: var(--text-secondary); }
+  .sc-steptab.done .n { background: var(--success-strong); color: #fff; }
   .sc-steptab.active { background: var(--ink); color: var(--ink-text); }
+  .sc-steptab.active .n { background: var(--ink-text); color: var(--ink); }
+  .sc-steptab.viewing:not(.active) { box-shadow: inset 0 0 0 1.5px var(--border-strong); }
   .sc-outcome-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 14px; }
   .oc-zone .oc-zone-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
   .oc-zone.oc-zone-forward .oc-zone-label { color: var(--success-strong); }
@@ -350,7 +356,7 @@
   .oc-afboek-confirm-row { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
   .oc-afboek-confirm-row .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .oc-reason-count { font-size: 11px; color: var(--text-tertiary); font-weight: 400; text-transform: none; letter-spacing: normal; }
-  .sc-step { }
+  .sc-stage-pane { }
   .sc-body { }
   .sc-sec { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
   .sc-sec > h3 { margin: 0 0 4px; font-size: 14px; }
@@ -518,7 +524,7 @@
     <div class="header-right">
       <div class="nav-tabs">
         <button class="tab-btn active" data-tab="funnel">Sales funnel</button>
-        <button class="tab-btn" data-tab="salescall">Salescall</button>
+        <button class="tab-btn" data-tab="salescall">Traject</button>
         <button class="tab-btn" data-tab="deals">Deals</button>
         <button class="tab-btn" data-tab="agenda">Agenda</button>
         <button class="tab-btn" data-tab="inbox">Leads inbox</button>
@@ -890,7 +896,7 @@
         <div class="sc-sticky-head">
           <div class="sc-page-head">
             <div>
-              <h2 id="sc-title">Cliëntanalyse</h2>
+              <h2 id="sc-title">Traject</h2>
               <div class="sub" id="sc-subtitle"></div>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -898,20 +904,21 @@
               <button class="btn secondary" id="sc-next-lead-btn" type="button">Volgende lead &rarr;</button>
             </div>
           </div>
-          <div class="sc-steptabs">
-            <button type="button" class="sc-steptab active" data-step="1">1 &middot; Salescall &amp; Cliëntanalyse</button>
-            <button type="button" class="sc-steptab" data-step="2">2 &middot; Offerte</button>
-          </div>
+          <div class="sc-steptabs" id="sc-steptabs"></div>
         </div>
 
-        <!-- STAP 1 -->
-        <div class="sc-step" id="sc-step-1">
-          <div id="sc-outcome-bar"></div>
+        <!-- Uitkomst-balk staat altijd bovenaan, ongeacht welke stap je bekijkt:
+             dit is precies waar de vorige klacht ("waar zijn de checkboxes")
+             vandaan kwam — hij mag nooit ergens diep in een stap verstopt zitten. -->
+        <div id="sc-outcome-bar"></div>
+
+        <!-- STAP 1: Salescall & Cliëntanalyse -->
+        <div class="sc-stage-pane" data-stage="call">
           <div class="sc-body" id="salescall-body"></div>
         </div>
 
-        <!-- STAP 2 -->
-        <div class="sc-step" id="sc-step-2" style="display:none;">
+        <!-- STAP 2: Offerte -->
+        <div class="sc-stage-pane" data-stage="offerte" style="display:none;">
           <div class="sc-guide" style="margin-bottom:14px;">
             <b>Offerte = de gegenereerde functionaliteitenovereenkomst.</b> Controleer de tekst, kopieer of download hem, en markeer daarna als verstuurd — dat schuift de deal door naar &ldquo;Offerte verstuurd&rdquo;.
           </div>
@@ -921,6 +928,21 @@
             <span class="status" id="sc-status"></span>
           </div>
           <div id="sc-agreement-step-wrap"></div>
+        </div>
+
+        <!-- STAP 3: Betaald / geaccepteerd -->
+        <div class="sc-stage-pane" data-stage="betaling" style="display:none;">
+          <div id="sc-betaling-body"></div>
+        </div>
+
+        <!-- STAP 4: Controle & oplevering -->
+        <div class="sc-stage-pane" data-stage="oplevering" style="display:none;">
+          <div id="sc-oplevering-body"></div>
+        </div>
+
+        <!-- STAP 5: Opgeleverd -->
+        <div class="sc-stage-pane" data-stage="klaar" style="display:none;">
+          <div id="sc-klaar-body"></div>
         </div>
       </div>
     </div>
@@ -2874,9 +2896,22 @@ function syncServicesToDeal(deal) {
   deal.seo = anyIn("SEO · Vindbaarheid");
 }
 
-// Nodes die nog een salescall-stap nodig hebben (vóór het omslagpunt naar
-// betaald/levering) — dit is de wachtrij op de Salescall-pagina.
-const SALESCALL_QUEUE_NODES = [201, 202, 203, 204];
+// Het volledige traject als vaste reeks stappen — elke fase van het gesprek
+// tot en met oplevering krijgt hier zijn eigen stap/tab. Zodra een deal
+// afgeboekt (209/210) of in onderhoud (208) staat, is de wachtrij klaar met
+// die lead — dat gebeurt buiten dit traject-scherm.
+const SC_STAGES = [
+  { key: "call",       nodes: [201, 202, 203], tabLabel: "Salescall & Cliëntanalyse" },
+  { key: "offerte",    nodes: [204],           tabLabel: "Offerte" },
+  { key: "betaling",   nodes: [205],           tabLabel: "Betaald / geaccepteerd" },
+  { key: "oplevering", nodes: [206],           tabLabel: "Controle & oplevering" },
+  { key: "klaar",      nodes: [207],           tabLabel: "Opgeleverd" }
+];
+function scStageForNode(node) { return SC_STAGES.find(s => s.nodes.includes(node)) || SC_STAGES[0]; }
+
+// Nodes die nog een traject-stap nodig hebben (vóór onderhoud/afboeking) —
+// dit is de wachtrij op de Traject-pagina.
+const SALESCALL_QUEUE_NODES = [201, 202, 203, 204, 205, 206, 207];
 
 function openSalescall(dealId) {
   const deal = state.deals.find(d => d.id === dealId);
@@ -2893,25 +2928,42 @@ function loadSalescallLead(dealId) {
   ensureSalescall(deal);
   document.getElementById("sc-empty-state").style.display = "none";
   document.getElementById("sc-active-lead").style.display = "";
-  document.getElementById("sc-title").textContent = "Cliëntanalyse — " + deal.naam;
+  document.getElementById("sc-title").textContent = deal.naam;
   document.getElementById("sc-subtitle").textContent = [deal.branche, deal.telefoon, nodeById[deal.node]?.label].filter(Boolean).join(" · ");
   scSetStatus("");
-  setSalescallStep(1);
+  renderSteptabs(deal);
+  setSalescallStage(scStageForNode(deal.node).key);
   renderSalescallBody(deal);
   renderOutcomeBar(deal);
+  renderBetalingBody(deal);
+  renderOpleveringBody(deal);
+  renderKlaarBody(deal);
   const wrap = document.getElementById("sc-agreement-step-wrap");
   if (wrap) wrap.innerHTML = "";
   if (deal.salescall.agreement) showAgreement(deal, deal.salescall.agreement);
   renderSalescallQueue();
 }
 
-function setSalescallStep(step) {
-  document.querySelectorAll(".sc-steptab").forEach(t => t.classList.toggle("active", Number(t.dataset.step) === step));
-  document.getElementById("sc-step-1").style.display = step === 1 ? "" : "none";
-  document.getElementById("sc-step-2").style.display = step === 2 ? "" : "none";
-  document.getElementById("sc-jump-afboek-btn").style.display = step === 1 ? "" : "none";
+// Stappenbalk: alle 5 fases altijd zichtbaar, zodat duidelijk is dat het
+// traject verder gaat dan alleen het gesprek — voltooide stappen krijgen een
+// vinkje, de huidige stap is actief gemarkeerd. Elke tab is los te bekijken
+// (bijv. terugkijken naar de cliëntanalyse), maar de acties in de
+// uitkomst-balk werken altijd op de écht huidige fase van de deal.
+function renderSteptabs(deal) {
+  const tabs = document.getElementById("sc-steptabs");
+  if (!tabs) return;
+  const currentIdx = SC_STAGES.findIndex(s => s.nodes.includes(deal.node));
+  tabs.innerHTML = SC_STAGES.map((s, i) => {
+    const state = i < currentIdx ? "done" : i === currentIdx ? "active" : "upcoming";
+    return `<button type="button" class="sc-steptab ${state}" data-stage="${s.key}"><span class="n">${i < currentIdx ? "&check;" : (i + 1)}</span>${esc(s.tabLabel)}</button>`;
+  }).join("");
+  tabs.querySelectorAll(".sc-steptab").forEach(t => t.addEventListener("click", () => setSalescallStage(t.dataset.stage)));
 }
-document.querySelectorAll(".sc-steptab").forEach(t => t.addEventListener("click", () => setSalescallStep(Number(t.dataset.step))));
+
+function setSalescallStage(stageKey) {
+  document.querySelectorAll(".sc-steptab").forEach(t => t.classList.toggle("viewing", t.dataset.stage === stageKey));
+  document.querySelectorAll(".sc-stage-pane").forEach(p => { p.style.display = p.dataset.stage === stageKey ? "" : "none"; });
+}
 on("sc-jump-afboek-btn", "click", () => {
   document.getElementById("sc-outcome-bar")?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -3008,6 +3060,104 @@ function renderOutcomeBar(deal) {
     const target = deal.node === 205 || deal.node === 206 ? 210 : 209;
     if (attemptMoveWithReason(deal, deal.node, target, selectedReason)) { renderAll(); document.getElementById("sc-next-lead-btn")?.click(); }
   });
+}
+
+// Generieke koppeling voor simpele tekst/checkbox-velden (data-key in
+// sc.answers) — gebruikt door de cliëntanalyse-body én de nieuwe
+// stappen (betaling/oplevering/klaar), zodat die niet elk hun eigen
+// opslaglogica nodig hebben.
+function wireScAnswerInputs(container, sc, deal) {
+  container.querySelectorAll(".sc-answer").forEach(el => {
+    const handler = () => {
+      sc.answers[el.dataset.key] = el.value;
+      if (el.dataset.key === "contact" && el.value.trim()) deal.contact = el.value.trim();
+      saveSalescallDebounced();
+    };
+    el.addEventListener("input", handler);
+    el.addEventListener("change", handler);
+  });
+  container.querySelectorAll(".sc-answer-check").forEach(el => {
+    el.addEventListener("change", () => { sc.answers[el.dataset.key] = el.checked; saveSalescallDebounced(); });
+  });
+}
+
+function scCheckField(sc, key, label) {
+  return `<div class="sc-q"><label style="display:flex; gap:8px; align-items:center; font-weight:600;"><input type="checkbox" class="sc-answer-check" data-key="${esc(key)}" ${sc.answers[key] ? "checked" : ""}> ${esc(label)}</label></div>`;
+}
+function scDateField(sc, key, label) {
+  return `<div class="sc-q"><label>${esc(label)}</label><input type="date" class="sc-answer" data-key="${esc(key)}" value="${esc(sc.answers[key] || "")}"></div>`;
+}
+function scTextField(sc, key, label, placeholder) {
+  return `<div class="sc-q"><label>${esc(label)}</label><input type="text" class="sc-answer" data-key="${esc(key)}" value="${esc(sc.answers[key] || "")}" placeholder="${esc(placeholder || "")}"></div>`;
+}
+function scNoteField(sc, key, label, placeholder) {
+  return `<div class="sc-q"><label>${esc(label)}</label><textarea class="sc-answer" data-key="${esc(key)}" placeholder="${esc(placeholder || "")}">${esc(sc.answers[key] || "")}</textarea></div>`;
+}
+
+// STAP 3: Betaald / geaccepteerd — geen apart gespreksscript nodig, alleen
+// vastleggen dát en hoe het akkoord/betaling binnen is, voor de administratie.
+function renderBetalingBody(deal) {
+  const el = document.getElementById("sc-betaling-body");
+  if (!el) return;
+  const sc = ensureSalescall(deal);
+  el.innerHTML = `
+    <div class="sc-sec">
+      <h3>Betaald / geaccepteerd</h3>
+      <div class="sc-guide"><b>Aanpak:</b><ul>
+        <li>Vink af zodra het schriftelijke/mondelinge akkoord er is én zodra de (aan)betaling binnen is — dit hoeft niet gelijktijdig.</li>
+        <li>Gebruik "Vooruit" hierboven pas als beide rond zijn.</li>
+      </ul></div>
+      ${scCheckField(sc, "betaling_akkoord", "Opdracht/offerte akkoord ontvangen van klant")}
+      ${scCheckField(sc, "betaling_ontvangen", "Betaling (aanbetaling of volledig) ontvangen")}
+      <div class="sc-row2">
+        ${scTextField(sc, "betaling_bedrag", "Bedrag ontvangen", "bijv. €199 aanbetaling")}
+        ${scDateField(sc, "betaling_datum", "Datum akkoord/betaling")}
+      </div>
+      ${scNoteField(sc, "betaling_notitie", "Notitie", "factuurnummer, betaalmethode, afwijkende afspraken...")}
+    </div>`;
+  wireScAnswerInputs(el, sc, deal);
+}
+
+// STAP 4: Controle & oplevering — opleverchecklist. Blijft desnoods meerdere
+// aanpassingsrondes op deze node staan (AANPASSINGEN_NODE), geen afboeking
+// nodig zolang er nog aan gewerkt wordt.
+function renderOpleveringBody(deal) {
+  const el = document.getElementById("sc-oplevering-body");
+  if (!el) return;
+  const sc = ensureSalescall(deal);
+  el.innerHTML = `
+    <div class="sc-sec">
+      <h3>Controle &amp; oplevering</h3>
+      <div class="sc-guide"><b>Checklist vóór oplevering:</b><ul>
+        <li>Technische controle: werkt alles, ook op mobiel?</li>
+        <li>Content/teksten: geen placeholder-tekst of dummy-content meer?</li>
+        <li>Klant heeft een preview/terugkoppeling gehad en kan feedback geven.</li>
+        <li>Pas als de klant écht akkoord is op de oplevering ga je vooruit naar "Opgeleverd".</li>
+      </ul></div>
+      ${scCheckField(sc, "oplevering_technisch", "Technische controle uitgevoerd")}
+      ${scCheckField(sc, "oplevering_content", "Content &amp; teksten gecontroleerd")}
+      ${scCheckField(sc, "oplevering_feedback_client", "Terugkoppeling/preview naar klant verstuurd")}
+      ${scCheckField(sc, "oplevering_akkoord_klant", "Klant heeft definitief akkoord gegeven op oplevering")}
+      ${scDateField(sc, "oplevering_datum", "Geplande opleverdatum")}
+      ${scNoteField(sc, "oplevering_notitie", "Aanpassingen / revisieronde", "wat is er nog aangepast, welke ronde zijn we...")}
+    </div>`;
+  wireScAnswerInputs(el, sc, deal);
+}
+
+// STAP 5: Opgeleverd — bevestiging + notitie; de knop "Onderhoud actief →"
+// in de uitkomst-balk hierboven sluit het traject voor deze lead af.
+function renderKlaarBody(deal) {
+  const el = document.getElementById("sc-klaar-body");
+  if (!el) return;
+  const sc = ensureSalescall(deal);
+  el.innerHTML = `
+    <div class="sc-sec">
+      <h3>Opgeleverd</h3>
+      <div class="sc-guide">Project is live opgeleverd. Leg de definitieve datum en eventuele onderhoudsafspraken vast, en klik daarna hierboven op &ldquo;Onderhoud actief &rarr;&rdquo; om deze lead af te ronden.</div>
+      ${scDateField(sc, "klaar_datum", "Definitieve opleverdatum")}
+      ${scNoteField(sc, "klaar_notitie", "Onderhoudsafspraken / vervolgnotities", "onderhoudscontract, vervolgwensen, evaluatiemoment...")}
+    </div>`;
+  wireScAnswerInputs(el, sc, deal);
 }
 
 // "Markeer als verstuurd": schuift de deal door naar Offerte verstuurd (204)
@@ -3135,18 +3285,7 @@ function renderSalescallBody(deal) {
   pakketSel.value = deal.pakketKey || "Starter|199";
   onderhoudSel.value = String(deal.onderhoud || 0);
 
-  body.querySelectorAll(".sc-answer").forEach(el => {
-    const handler = () => {
-      sc.answers[el.dataset.key] = el.value;
-      if (el.dataset.key === "contact" && el.value.trim()) deal.contact = el.value.trim();
-      saveSalescallDebounced();
-    };
-    el.addEventListener("input", handler);
-    el.addEventListener("change", handler);
-  });
-  body.querySelectorAll(".sc-answer-check").forEach(el => {
-    el.addEventListener("change", () => { sc.answers[el.dataset.key] = el.checked; saveSalescallDebounced(); });
-  });
+  wireScAnswerInputs(body, sc, deal);
   body.querySelectorAll(".sc-hours").forEach(wrap => {
     const key = wrap.dataset.key;
     const readHours = () => {
