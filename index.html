@@ -332,15 +332,22 @@
   .sc-steptabs { display: flex; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; margin-bottom: 16px; width: fit-content; }
   .sc-steptab { border: none; background: transparent; padding: 8px 16px; font-size: 12.5px; font-weight: 600; border-radius: 7px; cursor: pointer; color: var(--text-secondary); }
   .sc-steptab.active { background: var(--ink); color: var(--ink-text); }
-  .sc-outcome-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
-  .sc-outcome-bar .oc-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin-bottom: 9px; }
-  .sc-outcome-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .oc-forward-btn { background: var(--success-bg); color: var(--success-strong); border: 1px solid transparent; border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+  .sc-outcome-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .oc-zone .oc-zone-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+  .oc-zone.oc-zone-forward .oc-zone-label { color: var(--success-strong); }
+  .oc-zone.oc-zone-later .oc-zone-label { color: var(--warning); }
+  .oc-zone.oc-zone-afboek .oc-zone-label { color: var(--danger); }
+  .oc-zone-row { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+  .oc-forward-btn { background: var(--success-bg); color: var(--success-strong); border: 1px solid transparent; border-radius: 8px; padding: 9px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
   .oc-forward-btn:hover { filter: brightness(0.95); }
-  .oc-afboek-toggle { background: var(--danger-bg); color: var(--danger); border: 1px solid transparent; border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; margin-left: auto; }
-  .oc-afboek-panel { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); display: none; }
-  .oc-afboek-panel.open { display: block; }
-  .oc-afboek-panel select { width: 100%; padding: 8px 10px; border: 1px solid var(--danger-border); border-radius: 7px; font-size: 12.5px; background: var(--surface); color: var(--text); margin-bottom: 8px; }
+  .oc-zone-later { background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: 9px; padding: 10px 13px; font-size: 12.5px; color: var(--text); }
+  .oc-zone-afboek { border-top: 1px dashed var(--border); padding-top: 14px; }
+  .oc-reason-chip { border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger); border-radius: 999px; padding: 6px 13px; font-size: 12px; line-height: 1.3; cursor: pointer; user-select: none; text-align: left; }
+  .oc-reason-chip:hover { filter: brightness(0.96); }
+  .oc-reason-chip.on { background: var(--danger); color: var(--ink-text); border-color: var(--danger); }
+  .oc-afboek-confirm-row { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
+  .oc-afboek-confirm-row .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .oc-reason-count { font-size: 11px; color: var(--text-tertiary); font-weight: 400; text-transform: none; letter-spacing: normal; }
   .sc-step { }
   .sc-body { }
   .sc-sec { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
@@ -966,27 +973,42 @@ const AANPASSINGEN_NODE = 206;
 const AFBOEK_REDENEN = {
   201: [
     "Telefoonnummer bestaat niet of is onjuist",
+    "Geen telefoonnummer bekend",
     "Bedrijf bestaat niet meer — opgeheven of failliet",
     "Dubbele lead — staat al elders in de funnel",
     "Heeft al een professionele website",
-    "Buiten werkgebied of verkeerde doelgroep"
+    "Buiten werkgebied of verkeerde doelgroep",
+    "Bedrijf te klein of te groot voor ons aanbod",
+    "Staat op de bel-me-niet-lijst",
+    "Al eerder definitief afgewezen — cooldown nog niet voorbij"
   ],
   202: [
     "Weigering gesprek — direct geen interesse om te praten",
     "Nummer niet (meer) in gebruik",
     "Onbereikbaar na meerdere belpogingen",
+    "Voicemail ingesproken, geen terugbelverzoek ontvangen",
     "Geen interesse — tevreden met huidige situatie",
     "Geen interesse — te duur",
     "Geen interesse — is al website aan het laten bouwen",
     "Geen interesse — doet het liever zelf",
-    "Beslisser onbereikbaar — gatekeeper verbindt niet door"
+    "Beslisser onbereikbaar — gatekeeper verbindt niet door",
+    "Vraagt expliciet om niet meer gebeld te worden",
+    "Taalbarrière — geen gesprek mogelijk",
+    "Bedrijf blijkt gestopt/failliet — pas tijdens het bellen gebleken",
+    "Verkeerd moment — geen tijd/ruimte voor iets nieuws",
+    "Net elders getekend / concurrent al vergevorderd"
   ],
   203: [
     "Haakt af tijdens de analyse",
     "Budget komt niet overeen met wat nodig is",
     "Wensen niet realistisch binnen het aanbod te leveren",
     "Beslisser geeft na de analyse alsnog geen akkoord",
-    "Kiest tijdens dit traject alsnog voor een concurrent"
+    "Kiest tijdens dit traject alsnog voor een concurrent",
+    "Twijfelt en stelt beslissing uit zonder duidelijke reden",
+    "Verwacht een snellere oplevertijd dan wij kunnen bieden",
+    "Blijkt het probleem toch zelf te kunnen oplossen",
+    "Interne onenigheid tussen vennoten/beslissers",
+    "Reageert niet meer op vragen nodig voor de analyse"
   ],
   204: [
     "Te duur",
@@ -994,17 +1016,27 @@ const AFBOEK_REDENEN = {
     "Geen budget beschikbaar",
     "Geen reactie ondanks meerdere follow-ups",
     "Besluit het zelf te doen / niet te laten bouwen",
-    "Interne beslissing negatief"
+    "Interne beslissing negatief",
+    "Onderhandelt over korting en haakt daarna alsnog af",
+    "Offerte onduidelijk of sluit niet aan bij verwachting",
+    "Wacht bewust op nieuw budget/boekjaar",
+    "Contactpersoon vertrekt, opvolger pakt traject niet op",
+    "Voorwaarden afgewezen door juridische/inkoopafdeling"
   ],
   205: [
     "Geannuleerd binnen bedenktijd — herroepingsrecht",
     "Betaling mislukt of teruggedraaid",
-    "Contactpersoon niet bevoegd — geen mandaat"
+    "Contactpersoon niet bevoegd — geen mandaat",
+    "Bedrijf gaat alsnog failliet vlak na ondertekening",
+    "Blijkt dubbel geplaatst — kiest alsnog voor een ander"
   ],
   206: [
     "Stopgezet door de klant tijdens de bouw",
-    "Stopgezet door Mo Pro Max",
-    "Klant onbereikbaar tijdens oplevering"
+    "Stopgezet door Mo Pro Max — bv. herhaaldelijke non-betaling",
+    "Klant onbereikbaar tijdens oplevering",
+    "Klant weigert noodzakelijke toegang te geven — bv. domein/hosting",
+    "Structurele scope-uitbreiding zonder overeenstemming",
+    "Bedrijf failliet of onvindbaar tijdens de bouw"
   ]
 };
 
@@ -2907,40 +2939,62 @@ on("sc-next-lead-btn", "click", () => {
 // De "Uitkomst"-balk bovenaan stap 1: vooruit naar de volgende fase, of
 // afboeken met een verplichte, specifieke reden — precies de flow uit de
 // funnel, nu direct op de plek waar het gesprek ook gevoerd wordt.
+// Uitkomst-balk: drie altijd-zichtbare zones (nooit achter een wegklap-knop
+// verstopt, dat leidde eerder tot verwarring — "is terugbellen de enige
+// optie?"). Alle afboekredenen staan direct als aanklikbare chips in beeld.
 function renderOutcomeBar(deal) {
   const bar = document.getElementById("sc-outcome-bar");
   if (!bar) return;
   const nextIds = outgoing(deal.node).filter(id => id !== 209 && id !== 210);
-  const redenen = AFBOEK_REDENEN[deal.node];
-  const laterHint = LATER_NODES.includes(deal.node)
-    ? `<div class="hint2" style="margin-top:8px;">Nog geen beslissing? Blijft hier staan — plan een terugbelmoment via de agenda hieronder, dat is geen afboeking.</div>` : "";
+  const redenen = AFBOEK_REDENEN[deal.node] || [];
+  const isLater = LATER_NODES.includes(deal.node);
+
   bar.innerHTML = `
     <div class="sc-outcome-bar">
-      <div class="oc-label">Uitkomst van dit contactmoment</div>
-      <div class="oc-outcome-row-wrap">
-        <div class="sc-outcome-row">
-          ${nextIds.map(id => `<button type="button" class="oc-forward-btn" data-target="${id}">${esc(nodeById[id].label)} &rarr;</button>`).join("")}
-          ${redenen ? `<button type="button" class="oc-afboek-toggle" id="oc-afboek-toggle">Afboeken</button>` : ""}
+      <div class="oc-zone oc-zone-forward">
+        <div class="oc-zone-label">Vooruit</div>
+        <div class="oc-zone-row">
+          ${nextIds.map(id => `<button type="button" class="oc-forward-btn" data-target="${id}">${esc(nodeById[id].label)} &rarr;</button>`).join("") || `<span class="hint2">Geen vervolgstap gedefinieerd vanuit deze fase.</span>`}
         </div>
-        ${redenen ? `<div class="oc-afboek-panel" id="oc-afboek-panel">
-          <select id="oc-afboek-select"><option value="">Afboekreden kiezen…</option>${redenen.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select>
-          <button type="button" class="btn danger small" id="oc-afboek-confirm">Bevestig afboeking</button>
-        </div>` : ""}
       </div>
-      ${laterHint}
+      ${isLater ? `<div class="oc-zone oc-zone-later">
+        <b>Later / terugbellen</b> — géén afboeking. De deal blijft in deze fase staan; plan een terugbelmoment bij &ldquo;Later terugbellen&rdquo; verderop op deze pagina.
+      </div>` : ""}
+      ${redenen.length ? `<div class="oc-zone oc-zone-afboek">
+        <div class="oc-zone-label">Afboeken <span class="oc-reason-count">— kies één specifieke reden (${redenen.length} opties)</span></div>
+        <div class="oc-zone-row" id="oc-reason-chips">
+          ${redenen.map(r => `<button type="button" class="oc-reason-chip" data-reason="${esc(r)}">${esc(r)}</button>`).join("")}
+        </div>
+        <div class="oc-afboek-confirm-row">
+          <button type="button" class="btn danger small" id="oc-afboek-confirm" disabled>Bevestig afboeking</button>
+          <span class="hint2" id="oc-afboek-selected"></span>
+        </div>
+      </div>` : ""}
     </div>`;
+
   bar.querySelectorAll(".oc-forward-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       if (attemptMoveWithReason(deal, deal.node, Number(btn.dataset.target), "")) { renderAll(); loadSalescallLead(deal.id); }
     });
   });
-  const toggle = document.getElementById("oc-afboek-toggle");
-  const panel = document.getElementById("oc-afboek-panel");
-  toggle?.addEventListener("click", () => panel.classList.toggle("open"));
-  document.getElementById("oc-afboek-confirm")?.addEventListener("click", () => {
-    const reason = document.getElementById("oc-afboek-select").value;
+
+  let selectedReason = "";
+  const confirmBtn = document.getElementById("oc-afboek-confirm");
+  const selectedNote = document.getElementById("oc-afboek-selected");
+  bar.querySelectorAll(".oc-reason-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const already = chip.classList.contains("on");
+      bar.querySelectorAll(".oc-reason-chip").forEach(c => c.classList.remove("on"));
+      selectedReason = already ? "" : chip.dataset.reason;
+      if (!already) chip.classList.add("on");
+      if (confirmBtn) confirmBtn.disabled = !selectedReason;
+      if (selectedNote) selectedNote.textContent = selectedReason ? "Geselecteerd: " + selectedReason : "";
+    });
+  });
+  confirmBtn?.addEventListener("click", () => {
+    if (!selectedReason) return;
     const target = deal.node === 205 || deal.node === 206 ? 210 : 209;
-    if (attemptMoveWithReason(deal, deal.node, target, reason)) { renderAll(); document.getElementById("sc-next-lead-btn")?.click(); }
+    if (attemptMoveWithReason(deal, deal.node, target, selectedReason)) { renderAll(); document.getElementById("sc-next-lead-btn")?.click(); }
   });
 }
 
