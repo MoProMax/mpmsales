@@ -3060,8 +3060,9 @@ function renderOutcomeBar(deal) {
       <div class="oc-zone oc-zone-forward">
         <div class="oc-zone-label">Vooruit</div>
         <div class="oc-zone-row">
-          ${nextIds.map(id => `<button type="button" class="oc-forward-btn" data-target="${id}">${esc(nodeById[id].label)} &rarr;</button>`).join("") || `<span class="hint2">Geen vervolgstap gedefinieerd vanuit deze fase.</span>`}
-          ${skipDocGate ? `<span class="hint2">Ga naar het tabblad &ldquo;2 &middot; Offerte&rdquo; hierboven om de overeenkomst te genereren en te versturen — dat schuift de deal automatisch door.</span>` : ""}
+          ${nextIds.map(id => `<button type="button" class="oc-forward-btn" data-target="${id}">${esc(nodeById[id].label)} &rarr;</button>`).join("")}
+          ${skipDocGate ? `<span class="hint2">Ga naar het tabblad &ldquo;2 &middot; Offerte&rdquo; hierboven om de overeenkomst te genereren en te versturen — dat schuift de deal automatisch door.</span>`
+            : !nextIds.length ? `<span class="hint2">Geen vervolgstap gedefinieerd vanuit deze fase.</span>` : ""}
         </div>
       </div>
       ${isLater ? `<div class="oc-zone oc-zone-later">
