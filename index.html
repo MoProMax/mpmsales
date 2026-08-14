@@ -521,12 +521,10 @@
       </div>
       <div class="legend">
         <span><span class="dot" style="background:#64748b"></span>Acquisitie</span>
-        <span><span class="dot" style="background:#6366f1"></span>Gesprek &amp; voorstel</span>
-        <span><span class="dot" style="background:#8b5cf6"></span>Resultaat</span>
-        <span><span class="dot" style="background:#14b8a6"></span>Bouw &amp; livegang</span>
+        <span><span class="dot" style="background:#3538CD"></span>Verkoop</span>
+        <span><span class="dot" style="background:#14b8a6"></span>Levering</span>
         <span><span class="dot" style="background:#22c55e"></span>Onderhoud</span>
-        <span><span class="dot" style="background:#d97706"></span>Nurture / win-back</span>
-        <span><span class="dot" style="background:#dc2626"></span>Terminal &mdash; verloren</span>
+        <span><span class="dot" style="background:#dc2626"></span>Afgeboekt</span>
       </div>
       <div class="canvas-scroll">
         <svg id="edge-layer" class="canvas"></svg>
@@ -862,64 +860,118 @@
 /* =========================================================================
    DATA MODEL: nodes & edges define the non-linear sales/delivery funnel
    ========================================================================= */
-// Compacte funnel (12 fases i.p.v. 34) — sales-detail behouden, de vroegere
-// losse project-microstappen (design/QA/UAT/livegang) samengevoegd tot twee
-// brede stappen. Nieuwe ID's starten bij 101 zodat ze nooit botsen met de
-// oude 1–34, wat de migratie in migrateDealNodes() onvoorwaardelijk veilig maakt.
+// Funnel v3 — "Afboekflow": het bel-gedreven verkoopproces zoals het echt
+// gevoerd wordt, met bij elke stap een vaste set afboekredenen (AFBOEK_REDENEN
+// hieronder) i.p.v. één generieke "verloren"-stempel. Nieuwe ID's starten bij
+// 201 zodat ze nooit botsen met eerdere schema's (1–34, 101–112) — cruciaal
+// omdat bestaande deals in Firestore nog op een ouder schema kunnen staan.
 const NODES = [
-  { id: 101, label: "Nieuwe lead",         phase: 0, x: 40,   y: 40  },
-  { id: 102, label: "Gekwalificeerd",      phase: 0, x: 40,   y: 160 },
+  { id: 201, label: "Nieuwe lead",              phase: 0, x: 40,   y: 40  },
+  { id: 202, label: "Gebeld",                   phase: 0, x: 40,   y: 160 },
 
-  { id: 103, label: "In gesprek",          phase: 1, x: 330,  y: 40  },
-  { id: 104, label: "Voorstel verstuurd",  phase: 1, x: 330,  y: 160 },
-  { id: 105, label: "Onderhandeling",      phase: 1, x: 330,  y: 280 },
+  { id: 203, label: "Cliëntanalyse",            phase: 1, x: 330,  y: 40  },
+  { id: 204, label: "Offerte verstuurd",        phase: 1, x: 330,  y: 160 },
+  { id: 205, label: "Betaald / geaccepteerd",   phase: 1, x: 330,  y: 280 },
 
-  { id: 106, label: "Gewonnen",            phase: 2, x: 620,  y: 40,  type: "terminal-won" },
-  { id: 107, label: "Verloren",            phase: 2, x: 620,  y: 280, type: "terminal-lost" },
+  { id: 206, label: "Controle & oplevering",    phase: 2, x: 620,  y: 40  },
+  { id: 207, label: "Opgeleverd",               phase: 2, x: 620,  y: 160, type: "terminal-won" },
 
-  { id: 108, label: "In productie",        phase: 3, x: 910,  y: 40  },
-  { id: 109, label: "Livegang",            phase: 3, x: 910,  y: 160 },
+  { id: 208, label: "Onderhoud actief",         phase: 3, x: 910,  y: 40,  type: "ongoing" },
 
-  { id: 110, label: "Onderhoud actief",    phase: 4, x: 1200, y: 40,  type: "ongoing" },
-
-  { id: 111, label: "Nurture / later",     phase: 5, x: 330,  y: 460, type: "nurture" },
-  { id: 112, label: "Gestopt",             phase: 5, x: 910,  y: 460, type: "terminal-lost" }
+  { id: 209, label: "Verloren",                 phase: 4, x: 330,  y: 460, type: "terminal-lost" },
+  { id: 210, label: "Gestopt",                  phase: 4, x: 620,  y: 460, type: "terminal-lost" }
 ];
 
 const EDGES = [
-  [101,102],[101,107],
-  [102,103],[102,107],
-  [103,104],[103,111],[103,107],
-  [104,105],[104,106],[104,107],[104,111],
-  [105,106],[105,107],
-  [106,108],
-  [108,109],[108,112],
-  [109,110],[109,111],
-  [110,112],
-  [111,103],
-  [107,111],
-  [112,111]
+  [201,202],[201,209],
+  [202,203],[202,209],
+  [203,204],[203,209],
+  [204,205],[204,209],
+  [205,206],[205,210],
+  [206,207],[206,210],
+  [207,208]
 ];
 
-const PROB = {101:5, 102:15, 103:25, 104:40, 105:55, 106:100, 107:0, 108:95, 109:98, 110:100, 111:10, 112:0};
+const PROB = {201:5, 202:15, 203:30, 204:45, 205:90, 206:96, 207:100, 208:100, 209:0, 210:0};
 
-const PHASE_COLOR = ["#64748b","#6366f1","#8b5cf6","#14b8a6","#22c55e","#d97706"];
-const PHASE_NAME = ["Acquisitie","Gesprek & voorstel","Resultaat","Bouw & livegang","Onderhoud","Nurture"];
+const PHASE_COLOR = ["#64748b","#3538CD","#14b8a6","#22c55e","#A83A2E"];
+const PHASE_NAME = ["Acquisitie","Verkoop","Levering","Onderhoud","Afgeboekt"];
 
-// Eenmalige migratie: oude node-ID's (1–34, uit de vroegere 34-stappen-funnel)
-// -> nieuwe compacte ID's (101–112). Oude en nieuwe ID's overlappen bewust
-// niet, dus dit is onvoorwaardelijk veilig om elke keer opnieuw te draaien
-// (een deal die al op een nieuwe ID staat matcht geen sleutel en blijft ongewijzigd).
+// Bij welke fases "Later" (terugbelmoment in de agenda, géén afboeking) en
+// "Aanpassingen" (revisieronde) horen — puur voor de UI-tekst, geen edges:
+// de deal blijft simpelweg op zijn huidige node staan.
+const LATER_NODES = [202, 203, 204];
+const AANPASSINGEN_NODE = 206;
+
+// Per fase de vaste, specifieke afboekredenen (checkbox-lijst, bewust géén
+// vrij "anders"-veld — dat levert een data-analist achteraf niets op).
+// Sleutel = de node waarvandaan wordt afgeboekt.
+const AFBOEK_REDENEN = {
+  201: [
+    "Telefoonnummer bestaat niet of is onjuist",
+    "Bedrijf bestaat niet meer — opgeheven of failliet",
+    "Dubbele lead — staat al elders in de funnel",
+    "Heeft al een professionele website",
+    "Buiten werkgebied of verkeerde doelgroep"
+  ],
+  202: [
+    "Weigering gesprek — direct geen interesse om te praten",
+    "Nummer niet (meer) in gebruik",
+    "Onbereikbaar na meerdere belpogingen",
+    "Geen interesse — tevreden met huidige situatie",
+    "Geen interesse — te duur",
+    "Geen interesse — is al website aan het laten bouwen",
+    "Geen interesse — doet het liever zelf",
+    "Beslisser onbereikbaar — gatekeeper verbindt niet door"
+  ],
+  203: [
+    "Haakt af tijdens de analyse",
+    "Budget komt niet overeen met wat nodig is",
+    "Wensen niet realistisch binnen het aanbod te leveren",
+    "Beslisser geeft na de analyse alsnog geen akkoord",
+    "Kiest tijdens dit traject alsnog voor een concurrent"
+  ],
+  204: [
+    "Te duur",
+    "Kiest voor een concurrent",
+    "Geen budget beschikbaar",
+    "Geen reactie ondanks meerdere follow-ups",
+    "Besluit het zelf te doen / niet te laten bouwen",
+    "Interne beslissing negatief"
+  ],
+  205: [
+    "Geannuleerd binnen bedenktijd — herroepingsrecht",
+    "Betaling mislukt of teruggedraaid",
+    "Contactpersoon niet bevoegd — geen mandaat"
+  ],
+  206: [
+    "Stopgezet door de klant tijdens de bouw",
+    "Stopgezet door Mo Pro Max",
+    "Klant onbereikbaar tijdens oplevering"
+  ]
+};
+
+// Eenmalige, onvoorwaardelijk veilige migratieketen: 1–34 (oorspronkelijke
+// 34-stappen-funnel) -> 101–112 (eerste compacte versie) -> 201–210 (Afboekflow).
+// Elk schema heeft zijn eigen ID-bereik, dus een deal matcht hoogstens één
+// van de twee tabellen; een deal die al op 201–210 staat matcht geen van
+// beide en blijft ongewijzigd (idempotent, mag bij elke fbInit() opnieuw draaien).
 const OLD_NODE_MIGRATION = {
   1:101, 2:102, 3:107, 4:103, 5:111, 6:103, 7:103, 8:107, 9:104, 10:104,
   11:105, 12:107, 13:111, 14:106, 15:108, 16:108, 17:108, 18:108, 19:112,
   20:108, 21:108, 22:108, 23:108, 24:108, 25:112, 26:109, 27:109, 28:109,
   29:109, 30:109, 31:109, 32:110, 33:112, 34:111
 };
+const MID_NODE_MIGRATION = {
+  101:201, 102:202, 103:203, 104:204, 105:204,
+  106:205, 107:209, 108:206, 109:207, 110:208, 111:202, 112:210
+};
 function migrateDealNodes(deals) {
   let changed = false;
   deals.forEach(d => {
-    const mapped = OLD_NODE_MIGRATION[d.node];
+    let mapped = OLD_NODE_MIGRATION[d.node];
+    if (mapped !== undefined) { d.node = mapped; changed = true; }
+    mapped = MID_NODE_MIGRATION[d.node];
     if (mapped !== undefined) { d.node = mapped; changed = true; }
   });
   return changed;
@@ -1540,11 +1592,11 @@ try {
 function renderSummary() {
   const deals = state.deals;
   const activeDeals = deals.filter(d => nodeType(nodeById[d.node]) !== "terminal-lost");
-  const wonOrOngoing = deals.filter(d => [106,109,110].includes(d.node));
+  const wonOrOngoing = deals.filter(d => [205,206,207,208].includes(d.node));
   const lost = deals.filter(d => nodeType(nodeById[d.node]) === "terminal-lost");
   const pipelineValue = activeDeals.reduce((s,d) => s + (Number(d.waarde)||0), 0);
   const weighted = activeDeals.reduce((s,d) => s + (Number(d.waarde)||0) * (PROB[d.node]||0)/100, 0);
-  const mrr = deals.filter(d => d.node === 110).reduce((s,d) => s + (Number(d.onderhoud)||0), 0);
+  const mrr = deals.filter(d => d.node === 208).reduce((s,d) => s + (Number(d.onderhoud)||0), 0);
   const closedTotal = wonOrOngoing.length + lost.length;
   const winRate = closedTotal > 0 ? Math.round((wonOrOngoing.length / closedTotal) * 100) : 0;
   const attention = deals.filter(d => dealStatus(d) === "active" && (dealIsStale(d) || dealFollowUpOverdue(d))).length;
@@ -1554,7 +1606,7 @@ function renderSummary() {
     { label: "Actieve deals", value: activeDeals.length, sub: `${deals.length} totaal ooit ingeladen` , accent:false},
     { label: "Pipeline waarde", value: fmtEuro(pipelineValue), sub: "actieve eenmalige waarde", accent:true },
     { label: "Gewogen forecast", value: fmtEuro(weighted), sub: "waarde × winkans per fase", accent:true },
-    { label: "MRR onderhoud", value: fmtEuro(mrr) + "/mnd", sub: `${deals.filter(d=>d.node===110).length} actieve contracten`, accent:true },
+    { label: "MRR onderhoud", value: fmtEuro(mrr) + "/mnd", sub: `${deals.filter(d=>d.node===208).length} actieve contracten`, accent:true },
     { label: "Win rate", value: winRate + "%", sub: `${wonOrOngoing.length} gewonnen / ${lost.length} verloren`, accent:false },
     { label: "Aandacht nodig", value: attention, sub: "stilstaand of opvolging verlopen", accent:false }
   ];
@@ -1667,8 +1719,11 @@ function openNodePanel(nodeId) {
   const n = nodeById[nodeId];
   if (!n) return;
   document.getElementById("side-panel-title").textContent = n.label;
+  const hint = LATER_NODES.includes(nodeId) ? " · kan terugbellen zonder afboeking (agenda)"
+    : nodeId === AANPASSINGEN_NODE ? " · aanpassingsronde = blijft hier staan, geen afboeking"
+    : "";
   document.getElementById("side-panel-desc").textContent =
-    `Fase: ${PHASE_NAME[n.phase]} · winkans ${PROB[n.id] || 0}%`;
+    `Fase: ${PHASE_NAME[n.phase]} · winkans ${PROB[n.id] || 0}%${hint}`;
 
   const dealsHere = state.deals.filter(d => d.node === nodeId);
   const nextIds = outgoing(nodeId);
@@ -1700,6 +1755,7 @@ function openNodePanel(nodeId) {
           ${age != null ? `<span class="stage-age ${stale ? "stale" : ""}">${age} d. in fase</span>` : ""}
           ${d.followUpAt ? ` <span class="stage-age ${overdue ? "overdue" : ""}">opvolgen ${fmtDate(d.followUpAt)}</span>` : ""}
         </div>
+        ${d.afboekReden ? `<div class="meta" style="margin-top:4px; color:var(--danger);">Afboekreden: ${esc(d.afboekReden)}${d.afboekVanNode && nodeById[d.afboekVanNode] ? " (vanuit " + esc(nodeById[d.afboekVanNode].label) + ")" : ""}</div>` : ""}
         ${acts.length ? `<div class="act-list">${acts.map(a => `<div class="act-item"><b>${esc(a.type)}</b> ${fmtDate(a.at)}${a.text ? " — " + esc(a.text) : ""}</div>`).join("")}</div>` : ""}
         <div class="act-add">
           <select class="act-type" data-id="${esc(d.id)}">
@@ -1717,6 +1773,7 @@ function openNodePanel(nodeId) {
           </select>
           <button class="btn move-deal-btn" data-id="${esc(d.id)}" style="padding:6px 10px; font-size:12px;">Verplaats</button>
         </div>
+        <div class="afboek-reason-wrap" data-id="${esc(d.id)}" data-from="${nodeId}" style="display:none; margin-top:8px;"></div>
       </div>`;
     }).join("");
 
@@ -1748,13 +1805,54 @@ function openNodePanel(nodeId) {
         if (e.key === "Enter") body.querySelector(`.act-save-btn[data-id="${inp.dataset.id}"]`)?.click();
       });
     });
+    // Toont/verbergt de verplichte reden-select zodra "Verloren" of "Gestopt"
+    // gekozen wordt — de afboekreden hoort bij de fase waarUIT wordt verplaatst
+    // (data-from), niet bij de doelfase zelf.
+    body.querySelectorAll(".move-target").forEach(select => {
+      select.addEventListener("change", () => {
+        const wrap = body.querySelector(`.afboek-reason-wrap[data-id="${select.dataset.id}"]`);
+        if (!wrap) return;
+        const target = Number(select.value);
+        const fromNode = Number(wrap.dataset.from);
+        const redenen = AFBOEK_REDENEN[fromNode];
+        if ((target === 209 || target === 210) && redenen) {
+          wrap.style.display = "";
+          wrap.innerHTML = `
+            <select class="afboek-reason-select" style="width:100%; padding:7px 9px; border:1px solid var(--border-strong); border-radius:7px; font-size:12.5px; background:var(--surface); color:var(--text);">
+              <option value="">Afboekreden kiezen…</option>
+              ${redenen.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}
+            </select>`;
+        } else {
+          wrap.style.display = "none";
+          wrap.innerHTML = "";
+        }
+      });
+    });
+
     body.querySelectorAll(".move-deal-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const select = body.querySelector(`.move-target[data-id="${btn.dataset.id}"]`);
         const target = Number(select.value);
         if (!target) return;
         const deal = state.deals.find(d => d.id === btn.dataset.id);
-        if (deal && moveDeal(deal, target)) {
+        if (!deal) return;
+
+        if (target === 209 || target === 210) {
+          const wrap = body.querySelector(`.afboek-reason-wrap[data-id="${btn.dataset.id}"]`);
+          const reasonSel = wrap ? wrap.querySelector(".afboek-reason-select") : null;
+          const reason = reasonSel ? reasonSel.value : "";
+          if (!reason) {
+            alert("Kies eerst een afboekreden — dit is verplicht voor de data-analyse.");
+            return;
+          }
+          deal.afboekReden = reason;
+          deal.afboekVanNode = nodeId;
+          deal.afboekOp = new Date().toISOString();
+          if (!Array.isArray(deal.activiteiten)) deal.activiteiten = [];
+          deal.activiteiten.push({ at: deal.afboekOp, type: "Notitie", text: "Afgeboekt (" + nodeById[target].label + "): " + reason });
+        }
+
+        if (moveDeal(deal, target)) {
           saveState();
           renderAll();
           openNodePanel(nodeId);
@@ -2233,7 +2331,7 @@ function renderDealsTable() {
     <tr>
       <td><b>${esc(d.naam)}</b>${d.contact ? `<div style="color:var(--text-secondary); font-size:11px;">${esc(d.contact)}</div>` : ""}</td>
       <td>${esc(d.branche || "")}</td>
-      <td>${n ? esc(n.label) : "?"}</td>
+      <td>${n ? esc(n.label) : "?"}${d.afboekReden ? `<div style="color:var(--danger); font-size:11px;">${esc(d.afboekReden)}</div>` : ""}</td>
       <td>${fmtEuro(d.waarde)}</td>
       <td>${Number(d.onderhoud) ? fmtEuro(d.onderhoud) + "/mnd" : "—"}</td>
       <td>${age != null ? `<span class="stage-age ${stale ? "stale" : ""}">${age} d.</span>` : "—"}</td>
@@ -2293,13 +2391,15 @@ on("export-deals-btn", "click", () => {
   if (!state.deals.length) { alert("Geen deals om te exporteren."); return; }
   const rows = state.deals.map(d => {
     const n = nodeById[d.node];
+    const vanNode = nodeById[d.afboekVanNode];
     return [d.naam, d.contact || "", d.branche || "", d.telefoon || "", d.email || "", d.pakket || "",
       Number(d.waarde) || 0, Number(d.onderhoud) || 0, n ? n.label : d.node,
       d.createdAt ? fmtDate(d.createdAt) : "", d.nodeChangedAt ? fmtDate(d.nodeChangedAt) : "",
-      d.followUpAt ? fmtDate(d.followUpAt) : "", d.notities || ""];
+      d.followUpAt ? fmtDate(d.followUpAt) : "", d.afboekReden || "", vanNode ? vanNode.label : "",
+      d.notities || ""];
   });
   downloadCsv("mpm-deals-" + new Date().toISOString().slice(0, 10) + ".csv",
-    ["Bedrijf", "Contact", "Branche", "Telefoon", "E-mail", "Pakket", "Waarde", "Onderhoud p/mnd", "Fase", "Aangemaakt", "Laatste fasewissel", "Opvolgen op", "Notities"],
+    ["Bedrijf", "Contact", "Branche", "Telefoon", "E-mail", "Pakket", "Waarde", "Onderhoud p/mnd", "Fase", "Aangemaakt", "Laatste fasewissel", "Opvolgen op", "Afboekreden", "Afgeboekt vanuit", "Notities"],
     rows);
 });
 
