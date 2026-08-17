@@ -530,8 +530,8 @@
     <div class="header-right">
       <div class="nav-tabs">
         <button class="tab-btn active" data-tab="funnel">Sales funnel</button>
+        <button class="tab-btn" data-tab="deals">Actieve leads</button>
         <button class="tab-btn" data-tab="salescall">Traject</button>
-        <button class="tab-btn" data-tab="deals">Deals</button>
         <button class="tab-btn" data-tab="agenda">Agenda</button>
         <button class="tab-btn" data-tab="inbox">Leads inbox</button>
       </div>
@@ -567,7 +567,6 @@
         <span><span class="dot" style="background:#3538CD"></span>Verkoop</span>
         <span><span class="dot" style="background:#14b8a6"></span>Levering</span>
         <span><span class="dot" style="background:#22c55e"></span>Onderhoud</span>
-        <span><span class="dot" style="background:#dc2626"></span>Afgeboekt</span>
       </div>
       <div class="canvas-scroll">
         <svg id="edge-layer" class="canvas"></svg>
@@ -584,8 +583,8 @@
   <!-- ===================== DEALS SECTION ===================== -->
   <div class="section" id="section-deals">
     <div class="panel">
-      <div class="panel-title">Alle deals</div>
-      <div class="panel-desc">Doorzoek en sorteer alle deals in &eacute;&eacute;n lijst. Klik op een kolomkop om te sorteren, op "Open" om de deal in zijn funnel-fase te bekijken.</div>
+      <div class="panel-title">Actieve leads</div>
+      <div class="panel-desc">Doorzoek en sorteer alle actieve leads in &eacute;&eacute;n lijst. Klik op een kolomkop om te sorteren, op "Open" om alleen deze lead te bekijken.</div>
       <div class="filters">
         <div class="filter-group" style="min-width:220px;">
           <label>Zoeken</label>
@@ -750,6 +749,10 @@
         </div>
         <div class="filter-group" style="justify-content:flex-end;">
           <button class="btn" id="move-to-funnel-btn">Verplaats geselecteerde naar funnel</button>
+        </div>
+        <div class="filter-group" style="justify-content:flex-end; gap:6px;">
+          <input type="datetime-local" id="inbox-schedule-when" title="Datum &amp; tijd eerste keer bellen">
+          <button class="btn secondary" id="inbox-schedule-btn">Inplannen: eerste keer bellen</button>
         </div>
       </div>
       <div id="inbox-count" class="panel-desc" style="margin-top:-4px;"></div>
@@ -1897,36 +1900,34 @@ function renderSummary() {
 /* =========================================================================
    FLOWCHART RENDERING
    ========================================================================= */
-function edgeStyle(from, to) {
-  const toN = to; // `to` is already the resolved node object (fix: was incorrectly re-looked-up via nodeById[to], which always returned undefined and crashed renderFlowchart)
-  if (nodeType(toN) === "terminal-lost") return { stroke: "#dc2626", dash: "0", opacity: 0.55 };
-  if (toN.x < from.x || (toN.x === from.x && toN.y < from.y)) return { stroke: "#d97706", dash: "5,4", opacity: 0.55 };
+// De flowchart toont bewust geen afboek-uitkomsten (Verloren/Gestopt) — die
+// horen bij elke stap en zouden de tekening vol kruisende lijnen maken. Ze
+// bestaan nog gewoon als node/edges voor de afboek-logica elders in de app.
+const FLOWCHART_HIDDEN_NODES = [209, 210];
+const flowchartNodes = NODES.filter(n => !FLOWCHART_HIDDEN_NODES.includes(n.id));
+const flowchartEdges = EDGES.filter(([f, t]) => !FLOWCHART_HIDDEN_NODES.includes(f) && !FLOWCHART_HIDDEN_NODES.includes(t));
+
+function edgeStyle() {
   return { stroke: "#a8a7b3", dash: "0", opacity: 0.7 };
 }
 
+// Altijd vanaf de onderkant van de bronbox. Binnen dezelfde kolom (verticale
+// vervolgstap) recht naar de bovenkant van de doelbox. Bij een kolomwissel
+// (nieuwe sectie) een boog rechtsboven de doelbox in, zodat lijnen elkaar
+// niet meer kruisen zoals bij de oude zij-aan-zij-verbindingen.
 function edgePath(from, to) {
-  const fx = from.x + NODE_W, fy = from.y + NODE_H/2;
-  const isBackward = to.x < from.x;
-  const isSameCol = to.x === from.x;
-
-  if (isBackward) {
-    const tx = to.x + NODE_W/2, ty = to.y + NODE_H;
-    const midY = Math.max(from.y, to.y) + NODE_H + 40;
-    return `M ${fx-NODE_W/2} ${from.y+NODE_H} C ${fx-NODE_W/2} ${midY}, ${tx} ${midY}, ${tx} ${ty}`;
-  } else if (isSameCol) {
-    const tx = to.x + NODE_W, ty = to.y + NODE_H/2;
-    const off = 46;
-    return `M ${fx} ${fy} C ${fx+off} ${fy}, ${tx+off} ${ty}, ${tx} ${ty}`;
-  } else {
-    const tx = to.x, ty = to.y + NODE_H/2;
-    const midX = (fx + tx) / 2;
-    return `M ${fx} ${fy} C ${midX} ${fy}, ${midX} ${ty}, ${tx} ${ty}`;
-  }
+  const sameCol = to.x === from.x;
+  const fx = from.x + NODE_W / 2, fy = from.y + NODE_H;
+  const tx = sameCol ? to.x + NODE_W / 2 : to.x + NODE_W * 0.8;
+  const ty = to.y;
+  const bow = sameCol ? 24 : 0;
+  const midY = (fy + ty) / 2;
+  return `M ${fx} ${fy} C ${fx + bow} ${midY}, ${tx + bow} ${midY}, ${tx} ${ty}`;
 }
 
 function renderFlowchart() {
-  const maxX = Math.max(...NODES.map(n => n.x)) + NODE_W + 60;
-  const maxY = Math.max(...NODES.map(n => n.y)) + NODE_H + 60;
+  const maxX = Math.max(...flowchartNodes.map(n => n.x)) + NODE_W + 60;
+  const maxY = Math.max(...flowchartNodes.map(n => n.y)) + NODE_H + 60;
   const svg = document.getElementById("edge-layer");
   svg.setAttribute("width", maxX);
   svg.setAttribute("height", maxY);
@@ -1946,10 +1947,9 @@ function renderFlowchart() {
     </defs>
   `;
 
-  EDGES.forEach(([fromId, toId]) => {
+  flowchartEdges.forEach(([fromId, toId]) => {
     const from = nodeById[fromId], to = nodeById[toId];
-    const style = edgeStyle(from, to);
-    const marker = style.stroke === "#dc2626" ? "arrow-red" : (style.stroke === "#d97706" ? "arrow-amber" : "arrow");
+    const style = edgeStyle();
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
     path.setAttribute("d", edgePath(from, to));
     path.setAttribute("stroke", style.stroke);
@@ -1957,12 +1957,12 @@ function renderFlowchart() {
     path.setAttribute("stroke-dasharray", style.dash);
     path.setAttribute("opacity", style.opacity);
     path.setAttribute("fill", "none");
-    path.setAttribute("marker-end", `url(#${marker})`);
+    path.setAttribute("marker-end", "url(#arrow)");
     svg.appendChild(path);
   });
 
   document.querySelectorAll(".node").forEach(n => n.remove());
-  NODES.forEach(n => {
+  flowchartNodes.forEach(n => {
     const count = state.deals.filter(d => d.node === n.id).length;
     const div = document.createElement("div");
     div.className = "node " + (n.type || "");
@@ -1990,17 +1990,22 @@ function closeSidePanel() {
   document.getElementById("backdrop-dim").classList.remove("open");
 }
 
-function openNodePanel(nodeId) {
+// onlyDealId: als gezet, toont het paneel ALLEEN die ene lead i.p.v. alle
+// deals in die fase — dat is wat "Open" vanuit de Actieve-leads-tabel nu doet,
+// zodat je niet alles met dezelfde status door elkaar krijgt.
+function openNodePanel(nodeId, onlyDealId) {
   const n = nodeById[nodeId];
   if (!n) return;
-  document.getElementById("side-panel-title").textContent = n.label;
+  document.getElementById("side-panel-title").textContent = onlyDealId
+    ? (state.deals.find(d => d.id === onlyDealId)?.naam || n.label)
+    : n.label;
   const hint = LATER_NODES.includes(nodeId) ? " · kan terugbellen zonder afboeking (agenda)"
     : nodeId === AANPASSINGEN_NODE ? " · aanpassingsronde = blijft hier staan, geen afboeking"
     : "";
   document.getElementById("side-panel-desc").textContent =
     `Fase: ${PHASE_NAME[n.phase]} · winkans ${PROB[n.id] || 0}%${hint}`;
 
-  const dealsHere = state.deals.filter(d => d.node === nodeId);
+  const dealsHere = state.deals.filter(d => d.node === nodeId && (!onlyDealId || d.id === onlyDealId));
   const nextIds = outgoing(nodeId);
 
   const body = document.getElementById("side-panel-body");
@@ -2020,7 +2025,7 @@ function openNodePanel(nodeId) {
             <div class="meta">${esc(d.branche || "")}${d.contact ? " · " + esc(d.contact) : ""}</div>
           </div>
           <div style="display:flex; gap:5px;">
-            <button class="btn small sc-open-btn" data-id="${esc(d.id)}">📞 Cliëntanalyse</button>
+            <button class="btn small traject-open-btn" data-id="${esc(d.id)}">Naar Traject</button>
             <button class="btn secondary small edit-deal-btn" data-id="${esc(d.id)}">Bewerken</button>
             <button class="btn danger small delete-deal-card-btn" data-id="${esc(d.id)}" title="Deal verwijderen">&times;</button>
           </div>
@@ -2055,7 +2060,7 @@ function openNodePanel(nodeId) {
     body.querySelectorAll(".edit-deal-btn").forEach(btn => {
       btn.addEventListener("click", () => openDealModal(btn.dataset.id));
     });
-    body.querySelectorAll(".sc-open-btn").forEach(btn => {
+    body.querySelectorAll(".traject-open-btn").forEach(btn => {
       btn.addEventListener("click", () => openSalescall(btn.dataset.id));
     });
     body.querySelectorAll(".delete-deal-card-btn").forEach(btn => {
@@ -2415,44 +2420,86 @@ on("select-all", "change", (e) => {
   document.querySelectorAll(".inbox-check").forEach(cb => { cb.checked = e.target.checked; cb.closest(".inbox-row")?.classList.toggle("selected", e.target.checked); });
 });
 
+// Gedeelde omzetting lead -> deal, gebruikt door zowel "Verplaats naar
+// funnel" als "Inplannen: eerste keer bellen". node:201 = "Nieuwe lead" in
+// het huidige schema (was hier per ongeluk nog het oude, niet-gemigreerde
+// node:1 — klopte pas na een volledige pagina-herlaad via migrateDealNodes).
+function leadToDealFields(lead, now) {
+  return {
+    id: "deal-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+    sourceLeadId: lead.id,
+    naam: lead.naam,
+    contact: "",
+    branche: lead.branche || "Anders",
+    telefoon: lead.telefoon || "",
+    email: "",
+    pakketKey: "Starter|199",
+    pakket: "Starter",
+    branding: false,
+    techniek: false,
+    seo: false,
+    onderhoud: 0,
+    waarde: 199,
+    node: 201,
+    createdAt: now,
+    nodeChangedAt: now,
+    history: [],
+    activiteiten: [],
+    followUpAt: null,
+    notities: `Geïmporteerd vanuit leads inbox (${lead.regio || ""}${lead.adres ? ", " + lead.adres : ""})`
+  };
+}
+
+function getCheckedInboxIds() {
+  return Array.from(document.querySelectorAll(".inbox-check:checked")).map(cb => cb.dataset.id);
+}
+
 on("move-to-funnel-btn", "click", () => {
-  const checked = Array.from(document.querySelectorAll(".inbox-check:checked")).map(cb => cb.dataset.id);
+  const checked = getCheckedInboxIds();
   if (checked.length === 0) return;
 
   const now = new Date().toISOString();
   checked.forEach(leadId => {
     const idx = state.inboxLeads.findIndex(l => l.id === leadId);
     if (idx === -1) return;
-    const lead = state.inboxLeads[idx];
-    state.deals.push({
-      id: "deal-" + Date.now() + "-" + Math.floor(Math.random()*1000),
-      sourceLeadId: lead.id,
-      naam: lead.naam,
-      contact: "",
-      branche: lead.branche || "Anders",
-      telefoon: lead.telefoon || "",
-      email: "",
-      pakketKey: "Starter|199",
-      pakket: "Starter",
-      branding: false,
-      techniek: false,
-      seo: false,
-      onderhoud: 0,
-      waarde: 199,
-      node: 1,
-      createdAt: now,
-      nodeChangedAt: now,
-      history: [],
-      activiteiten: [],
-      followUpAt: null,
-      notities: `Geïmporteerd vanuit leads inbox (${lead.regio || ""}${lead.adres ? ", " + lead.adres : ""})`
-    });
+    state.deals.push(leadToDealFields(state.inboxLeads[idx], now));
     state.inboxLeads.splice(idx, 1);
   });
 
   saveState();
   renderInbox();
   renderAll();
+});
+
+// Geselecteerde leads direct inplannen als "eerste keer bellen"-afspraak: ze
+// worden meteen deals (fase "Nieuwe lead") en krijgen een terugbelafspraak
+// zodat ze meteen in de Agenda staan, precies zoals een terugbelafspraak
+// vanuit de Cliëntanalyse.
+on("inbox-schedule-btn", "click", () => {
+  const checked = getCheckedInboxIds();
+  if (checked.length === 0) { alert("Selecteer eerst één of meer leads."); return; }
+  const whenInput = document.getElementById("inbox-schedule-when");
+  const when = whenInput?.value;
+  if (!when) { alert("Kies eerst een datum en tijd om te bellen."); return; }
+
+  const now = new Date().toISOString();
+  checked.forEach(leadId => {
+    const idx = state.inboxLeads.findIndex(l => l.id === leadId);
+    if (idx === -1) return;
+    const deal = leadToDealFields(state.inboxLeads[idx], now);
+    deal.salescall = {
+      answers: {}, services: {}, startedAt: now,
+      callback: { scheduledAt: when, note: "Eerste keer bellen (vanuit leads inbox)", createdAt: now }
+    };
+    state.deals.push(deal);
+    state.inboxLeads.splice(idx, 1);
+  });
+
+  saveState();
+  renderInbox();
+  renderAll();
+  if (whenInput) whenInput.value = "";
+  alert(checked.length + (checked.length === 1 ? " lead" : " leads") + " ingepland in de Agenda.");
 });
 
 function buildResearchPrompt(branche, regio, minReviews, minRating) {
@@ -2613,14 +2660,14 @@ function renderDealsTable() {
       <td>${d.followUpAt ? `<span class="stage-age ${overdue ? "overdue" : ""}">${fmtDate(d.followUpAt)}</span>` : "—"}</td>
       <td style="white-space:nowrap;">
         <button class="btn small deal-sc-btn" data-id="${esc(d.id)}" title="Cliëntanalyse / behoefteanalyse">📞</button>
-        <button class="btn secondary small deal-open-btn" data-node="${d.node}">Open</button>
+        <button class="btn secondary small deal-open-btn" data-node="${d.node}" data-id="${esc(d.id)}">Open</button>
         <button class="btn secondary small deal-edit-btn" data-id="${esc(d.id)}">Bewerken</button>
       </td>
     </tr>`;
   }).join("");
 
   tbody.querySelectorAll(".deal-open-btn").forEach(btn =>
-    btn.addEventListener("click", () => openNodePanel(Number(btn.dataset.node))));
+    btn.addEventListener("click", () => openNodePanel(Number(btn.dataset.node), btn.dataset.id)));
   tbody.querySelectorAll(".deal-edit-btn").forEach(btn =>
     btn.addEventListener("click", () => openDealModal(btn.dataset.id)));
   tbody.querySelectorAll(".deal-sc-btn").forEach(btn =>
