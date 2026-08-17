@@ -208,6 +208,9 @@
   th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
   th { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); font-weight: 700; background: var(--surface-alt); }
   tr:hover td { background: var(--surface-hover); }
+  .inbox-row { cursor: pointer; }
+  .inbox-row.selected td { background: var(--accent-bg); }
+  .inbox-row.selected:hover td { background: var(--accent-bg); filter: brightness(0.97); }
   .stars { color: #d4a017; white-space: nowrap; font-size: 12px; }
   .empty-msg { text-align: center; color: var(--text-tertiary); font-size: 12.5px; padding: 30px; }
 
@@ -2279,7 +2282,7 @@ function renderInbox() {
   } else {
     if (emptyMsg) emptyMsg.style.display = "none";
     tbody.innerHTML = filtered.map(l => `
-      <tr>
+      <tr class="inbox-row" data-id="${esc(l.id)}">
         <td><input type="checkbox" class="inbox-check" data-id="${esc(l.id)}"></td>
         <td>${esc(l.naam)}</td>
         <td>${esc(l.branche || "")}</td>
@@ -2289,6 +2292,17 @@ function renderInbox() {
         <td>${esc(l.telefoon || "")}</td>
       </tr>
     `).join("");
+    tbody.querySelectorAll(".inbox-row").forEach(row => {
+      row.querySelector(".inbox-check").addEventListener("change", () => {
+        row.classList.toggle("selected", row.querySelector(".inbox-check").checked);
+      });
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".inbox-check")) return; // checkbox regelt zichzelf al, niet dubbel togglen
+        const cb = row.querySelector(".inbox-check");
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event("change"));
+      });
+    });
   }
 
   const selectAll = document.getElementById("select-all");
@@ -2320,7 +2334,7 @@ on("reset-filters-btn", "click", () => {
 });
 
 on("select-all", "change", (e) => {
-  document.querySelectorAll(".inbox-check").forEach(cb => { cb.checked = e.target.checked; });
+  document.querySelectorAll(".inbox-check").forEach(cb => { cb.checked = e.target.checked; cb.closest(".inbox-row")?.classList.toggle("selected", e.target.checked); });
 });
 
 on("move-to-funnel-btn", "click", () => {
