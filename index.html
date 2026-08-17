@@ -897,9 +897,9 @@
       <table>
         <thead>
           <tr>
-            <th>Bedrijf</th>
-            <th>Status</th>
-            <th>Tijd in fase</th>
+            <th class="sortable" data-sort="naam">Bedrijf</th>
+            <th class="sortable" data-sort="status">Status</th>
+            <th class="sortable" data-sort="age">Tijd in fase</th>
             <th style="width:110px;"></th>
           </tr>
         </thead>
@@ -3158,18 +3158,39 @@ function dealStatusLabel(deal) {
   return n.label;
 }
 
+// key: null = standaard prioriteitsvolgorde (opvolging verlopen eerst, dan
+// actieve trajectstappen, dan oudste in fase). Klik op een kolomkop schakelt
+// naar handmatig sorteren op die kolom.
+let scListSort = { key: null, dir: 1 };
+
 // Overzicht: ALLE leads, niet alleen de actieve wachtrij — achterstallige
-// opvolging eerst, dan actieve trajectstappen, dan afgeboekt/onderhoud onderaan.
+// opvolging eerst, dan actieve trajectstappen, dan afgeboekt/onderhoud onderaan
+// (tenzij handmatig op een kolom gesorteerd wordt).
 function renderSalescallList() {
   const tbody = document.getElementById("sc-list-body");
   const countEl = document.getElementById("sc-list-count");
   const emptyEl = document.getElementById("sc-list-empty");
   if (!tbody) return;
-  const list = state.deals.slice().sort((a, b) =>
-    (Number(dealFollowUpOverdue(b)) - Number(dealFollowUpOverdue(a))) ||
-    (Number(SALESCALL_QUEUE_NODES.includes(b.node)) - Number(SALESCALL_QUEUE_NODES.includes(a.node))) ||
-    ((dealStageAge(b) || 0) - (dealStageAge(a) || 0))
-  );
+  const { key, dir } = scListSort;
+  const sortVal = d => {
+    switch (key) {
+      case "naam": return (d.naam || "").toLowerCase();
+      case "status": return dealStatusLabel(d).toLowerCase();
+      case "age": return dealStageAge(d) ?? -1;
+      default: return null;
+    }
+  };
+  const list = state.deals.slice().sort((a, b) => {
+    if (key) {
+      const va = sortVal(a), vb = sortVal(b);
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      return 0;
+    }
+    return (Number(dealFollowUpOverdue(b)) - Number(dealFollowUpOverdue(a))) ||
+      (Number(SALESCALL_QUEUE_NODES.includes(b.node)) - Number(SALESCALL_QUEUE_NODES.includes(a.node))) ||
+      ((dealStageAge(b) || 0) - (dealStageAge(a) || 0));
+  });
   if (countEl) countEl.textContent = list.length + (list.length === 1 ? " lead" : " leads");
   if (!list.length) { tbody.innerHTML = ""; if (emptyEl) emptyEl.style.display = "block"; return; }
   if (emptyEl) emptyEl.style.display = "none";
@@ -3191,6 +3212,14 @@ function renderSalescallList() {
     });
   });
 }
+document.querySelectorAll("#sc-list-view th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.sort;
+    if (scListSort.key === key) scListSort.dir *= -1;
+    else scListSort = { key, dir: key === "age" ? -1 : 1 };
+    renderSalescallList();
+  });
+});
 
 on("sc-next-lead-btn", "click", () => {
   const list = state.deals;
