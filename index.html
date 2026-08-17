@@ -492,7 +492,7 @@
     background: var(--surface); border-radius: 14px; padding: 34px 32px;
     width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); position: relative;
   }
-  #auth-gate .theme-toggle { position: absolute; top: 14px; right: 14px; }
+  #theme-toggle-gate { position: fixed; top: 14px; right: 14px; z-index: 10000; }
   #auth-gate h2 { margin: 0 0 6px; font-size: 19px; color: var(--text); }
   #auth-gate p.sub { margin: 0 0 20px; font-size: 13px; color: var(--text-muted); }
   #auth-gate label { display:block; font-size: 11px; font-weight: 700; color: var(--text); margin: 14px 0 5px; text-transform: uppercase; letter-spacing:.03em; }
@@ -517,10 +517,10 @@
 <script src="qrcode.js"></script>
 
 <div id="auth-gate">
+  <button class="theme-toggle" id="theme-toggle-gate" type="button" title="Wissel tussen licht en donker thema" aria-label="Thema wisselen">
+    <span class="ti-moon">🌙</span><span class="ti-sun">☀️</span>
+  </button>
   <div class="card">
-    <button class="theme-toggle" id="theme-toggle-gate" type="button" title="Wissel tussen licht en donker thema" aria-label="Thema wisselen">
-      <span class="ti-moon">🌙</span><span class="ti-sun">☀️</span>
-    </button>
     <h2>Mo Pro Max</h2>
     <p class="sub">Alleen voor geautoriseerde toegang.</p>
     <div id="step-password">
