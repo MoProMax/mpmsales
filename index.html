@@ -429,8 +429,16 @@
   .ag-item .when { font-weight: 700; font-size: 12.5px; }
   .ag-item .who { font-size: 13px; font-weight: 600; }
   .ag-item .note { font-size: 11.5px; color: var(--text-secondary); }
-  .ag-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ag-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .ag-actions a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+  .ag-kebab-wrap { position: relative; }
+  .ag-kebab { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--text-secondary); padding: 2px 6px; border-radius: 6px; line-height: 1; }
+  .ag-kebab:hover { background: var(--surface-hover); color: var(--text); }
+  .ag-kebab-menu { display: none; position: absolute; right: 0; top: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.18); z-index: 999; min-width: 140px; padding: 4px 0; }
+  .ag-kebab-menu.open { display: block; }
+  .ag-kebab-menu button { display: block; width: 100%; text-align: left; background: none; border: none; padding: 8px 14px; font-size: 13px; cursor: pointer; color: var(--text); }
+  .ag-kebab-menu button:hover { background: var(--surface-hover); }
+  .ag-kebab-menu button.danger { color: var(--danger); }
 
   /* ---------- Responsief (mobiel) ---------- */
   .table-scroll { overflow-x: auto; }
@@ -4467,6 +4475,12 @@ function agItem(c) {
       ${tel ? `<a class="btn secondary small" href="tel:${esc(tel)}">Bel</a>` : ""}
       <button class="btn small ag-sc" data-id="${esc(d.id)}">📞 Cliëntanalyse</button>
       <button class="btn secondary small ag-funnel" data-id="${esc(d.id)}">Traject</button>
+      <div class="ag-kebab-wrap">
+        <button class="ag-kebab" title="Meer opties">⋮</button>
+        <div class="ag-kebab-menu">
+          <button class="danger ag-delete-cb" data-id="${esc(d.id)}">Verwijder afspraak</button>
+        </div>
+      </div>
     </div>
   </div>`;
 }
@@ -4543,6 +4557,36 @@ function renderAgenda() {
   }
   list.querySelectorAll(".ag-sc").forEach(b => b.addEventListener("click", () => openSalescall(b.dataset.id)));
   list.querySelectorAll(".ag-funnel").forEach(b => b.addEventListener("click", () => openSalescall(b.dataset.id)));
+
+  list.querySelectorAll(".ag-kebab").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const menu = btn.nextElementSibling;
+      const isOpen = menu.classList.contains("open");
+      document.querySelectorAll(".ag-kebab-menu.open").forEach(m => m.classList.remove("open"));
+      if (!isOpen) menu.classList.add("open");
+    });
+  });
+
+  list.querySelectorAll(".ag-delete-cb").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const deal = state.deals.find(d => d.id === btn.dataset.id);
+      if (!deal) return;
+      if (!confirm(`Afspraak verwijderen voor ${deal.naam}?`)) return;
+      if (deal.salescall) deal.salescall.callback = null;
+      deal.followUpAt = null;
+      saveState();
+      renderAgenda();
+      renderDealsTable();
+    });
+  });
+
+  document.addEventListener("click", function closeMenus(e) {
+    if (!e.target.closest(".ag-kebab-wrap")) {
+      document.querySelectorAll(".ag-kebab-menu.open").forEach(m => m.classList.remove("open"));
+    }
+  }, { once: true });
 }
 
 on("ag-prev", "click", () => { agendaInit(); if (--agendaView.month < 0) { agendaView.month = 11; agendaView.year--; } agendaView.selectedKey = null; renderAgenda(); });
