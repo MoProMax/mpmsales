@@ -583,6 +583,8 @@
     </div>
   </div>
 
+  <div id="fb-global-status" style="display:none; padding:6px 16px; font-size:12px; font-weight:600; border-bottom:1px solid var(--border);"></div>
+
   <div class="summary" id="summary"></div>
 
   <!-- ===================== FUNNEL SECTION ===================== -->
@@ -1264,9 +1266,24 @@ let lastLeadsSignature = null;
 
 function fbSetStatus(text, ok) {
   const el = document.getElementById("fb-status");
-  if (!el) return;
-  el.textContent = text;
-  el.style.color = ok === true ? "var(--success-strong)" : ok === false ? "var(--danger)" : "var(--text-secondary)";
+  if (el) {
+    el.textContent = text;
+    el.style.color = ok === true ? "var(--success-strong)" : ok === false ? "var(--danger)" : "var(--text-secondary)";
+  }
+  const global = document.getElementById("fb-global-status");
+  if (global) {
+    if (ok === false) {
+      global.style.display = "block";
+      global.style.background = "var(--danger-bg)";
+      global.style.color = "var(--danger)";
+      global.textContent = "⚠ Firebase: " + text;
+    } else {
+      global.style.display = "none";
+    }
+  }
+  // Altijd in console zodat we het kunnen zien
+  if (ok === false) console.error("[Firebase]", text);
+  else console.log("[Firebase]", text);
 }
 
 // Rauwe sign-in: geeft óf { idToken, ... } (account zonder MFA) óf
@@ -1760,23 +1777,41 @@ async function pollForUpdates() {
 }
 
 async function fbInit() {
-  // Firestore is de enige databron: er is geen lokale seed-data en geen
-  // localStorage-cache meer. Bij elke pagina-load wordt alles vers opgehaald.
-  fbSetStatus("Firebase: laden...", null);
+  fbSetStatus("Firebase: verbinding maken...", null);
   try {
-    await fbEnsureAuth();
+    fbSetStatus("Firebase: token controleren...", null);
+    const tok = await fbEnsureAuth();
+    console.log("[fbInit] token ok, uid check doet fbEnsureAuth al");
+
+    fbSetStatus("Firebase: meta ophalen...", null);
     const meta = await fbGetDoc("meta/status");
     fbLastMeta = meta || { leadChunkCount: 0 };
-    const remote = await fbPullFullState();
-    state = remote;
+    console.log("[fbInit] meta/status:", meta);
+
+    fbSetStatus("Firebase: leads laden...", null);
+    const chunkDocs = await fbListCollection("leadChunks");
+    console.log("[fbInit] leadChunks docs:", chunkDocs.length);
+
+    fbSetStatus("Firebase: deals laden...", null);
+    const dealDocs = await fbListCollection("deals");
+    console.log("[fbInit] deals docs:", dealDocs.length);
+
+    const requestDocs = await fbListCollection("requests");
+    console.log("[fbInit] requests docs:", requestDocs.length);
+
+    chunkDocs.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+    const inboxLeads = [];
+    chunkDocs.forEach(c => { if (Array.isArray(c.data.items)) inboxLeads.push(...c.data.items); });
+    console.log("[fbInit] leads uit chunks:", inboxLeads.length);
+
+    state = { inboxLeads, deals: dealDocs.map(d => d.data), requests: requestDocs.map(d => d.data) };
     lastLeadsSignature = leadsSignature(state.inboxLeads);
     firebaseReady = true;
-    // Eenmalige migratie naar de compacte funnel — schrijft direct terug naar
-    // Firestore zodat oude node-ID's daar niet blijven hangen.
+
     if (migrateDealNodes(state.deals)) saveState();
     fbSetStatus(
       "Firebase: gesynchroniseerd " + new Date().toLocaleTimeString("nl-NL") +
-      " (" + state.inboxLeads.length + " leads)", true
+      " — " + state.inboxLeads.length + " leads, " + state.deals.length + " deals", true
     );
     renderAll();
     renderInbox();
@@ -1784,8 +1819,8 @@ async function fbInit() {
     if (leadPollTimer) clearInterval(leadPollTimer);
     leadPollTimer = setInterval(pollForUpdates, 45000);
   } catch (e) {
-    console.warn("Firebase init mislukt", e);
-    fbSetStatus("Firebase: niet verbonden — geen data geladen. Vernieuw de pagina om opnieuw te proberen.", false);
+    console.error("[fbInit] FOUT:", e);
+    fbSetStatus("Firebase fout: " + e.message + " — Vernieuw de pagina of check de console (F12).", false);
   }
 }
 on("leads-refresh-btn", "click", async () => {
