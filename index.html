@@ -546,6 +546,7 @@
       <button class="theme-toggle" id="theme-toggle" type="button" title="Wissel tussen licht en donker thema" aria-label="Thema wisselen">
         <span class="ti-moon">🌙</span><span class="ti-sun">☀️</span>
       </button>
+      <button class="btn secondary small" id="logout-btn" type="button" title="Sessie beëindigen op dit apparaat">Uitloggen</button>
     </div>
   </div>
 
@@ -1186,6 +1187,7 @@ let fbAuth = null;          // { idToken, expiresAt } — alleen in geheugen, ni
 let firebaseReady = false;  // true zodra de eerste pull uit Firestore is gelukt
 let fbSyncInFlight = false;
 let fbLastMeta = null;
+let leadPollTimer = null;   // periodieke achtergrond-check op nieuwe leads/aanvragen (zie pollForUpdates)
 let lastLeadsSignature = null;
 
 function fbSetStatus(text, ok) {
@@ -1273,16 +1275,47 @@ async function fbRefreshToken(refreshToken) {
 }
 
 async function fbEnsureAuth() {
-  // Geen anonieme fallback meer: alleen de echte, met e-mail/wachtwoord + TOTP
-  // ingelogde sessie (via de auth-gate) mag Firestore benaderen. Niets wordt
-  // opgeslagen (geen localStorage) — bij een nieuwe pagina-load moet opnieuw
-  // ingelogd worden.
+  // Geen anonieme fallback: alleen de echte, met e-mail/wachtwoord + TOTP
+  // ingelogde sessie (via de auth-gate) mag Firestore benaderen. Het
+  // refreshToken staat in sessionStorage (zie AUTH_SESSION_KEY) zodat een
+  // pagina-ververing niet opnieuw om wachtwoord + TOTP vraagt — dat token
+  // alleen is server-side altijd nog te herroepen en verlaat de sessionStorage
+  // van deze ene tab/vensters-sessie nooit naar een ander apparaat.
   if (fbAuth && fbAuth.idToken && fbAuth.expiresAt > Date.now()) return fbAuth.idToken;
   if (fbAuth && fbAuth.refreshToken) {
     fbAuth = await fbRefreshToken(fbAuth.refreshToken);
+    persistAuthSession(fbAuth);
     return fbAuth.idToken;
   }
   throw new Error("Niet ingelogd.");
+}
+
+const AUTH_SESSION_KEY = "mpm-auth-session";
+function persistAuthSession(auth) {
+  try { sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ refreshToken: auth.refreshToken })); } catch (e) {}
+}
+function clearAuthSession() {
+  try { sessionStorage.removeItem(AUTH_SESSION_KEY); } catch (e) {}
+}
+// Bij het laden van de pagina: is er nog een refreshToken van deze
+// browser-sessie (sluit je de hele browser, dan is-ie weg), probeer daarmee
+// stil door te loggen — zonder opnieuw wachtwoord + TOTP te vragen.
+async function tryResumeSession() {
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(AUTH_SESSION_KEY) || "null"); } catch (e) {}
+  if (!saved || !saved.refreshToken) return false;
+  try {
+    const r = await fbRefreshToken(saved.refreshToken);
+    if (decodeJwtUid(r.idToken) !== OWNER_UID) throw new Error("owner mismatch");
+    fbAuth = r;
+    persistAuthSession(fbAuth);
+    unlockDashboard();
+    return true;
+  } catch (e) {
+    console.warn("Sessie herstellen mislukt, opnieuw inloggen nodig", e);
+    clearAuthSession();
+    return false;
+  }
 }
 
 /* ============================ AUTH GATE (e-mail/wachtwoord + Google Authenticator) ============================ */
@@ -1317,6 +1350,7 @@ function unlockDashboard() {
 function finishLogin(idToken, refreshToken, expiresIn) {
   if (decodeJwtUid(idToken) !== OWNER_UID) throw new Error("Dit account heeft geen toegang.");
   fbAuth = authFromTokens(idToken, refreshToken, expiresIn);
+  persistAuthSession(fbAuth);
   unlockDashboard();
 }
 
@@ -1614,6 +1648,45 @@ async function fbSyncPush() {
   }
 }
 
+// Er is geen realtime Firestore-listener — leadChunks/requests kunnen van
+// buitenaf bijgewerkt worden (scraper/onderzoeksaanvraag) zonder dat deze tab
+// het merkt. Elke 45s stil opnieuw ophalen en alleen NIEUWE leads toevoegen
+// (nooit bestaande verwijderen — voorkomt dat een net-lokaal-toegevoegde,
+// nog niet weggeschreven lead per ongeluk verdwijnt) en requests bijwerken
+// (voor statuswijzigingen zoals "voltooid").
+async function pollForUpdates() {
+  if (!firebaseReady || fbSyncInFlight) return;
+  try {
+    const [chunkDocs, requestDocs] = await Promise.all([
+      fbListCollection("leadChunks"), fbListCollection("requests")
+    ]);
+    chunkDocs.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+    const remoteLeads = [];
+    chunkDocs.forEach(c => { if (Array.isArray(c.data.items)) remoteLeads.push(...c.data.items); });
+    const knownIds = new Set(state.inboxLeads.map(l => l.id));
+    const newLeads = remoteLeads.filter(l => l && l.id && !knownIds.has(l.id));
+    if (newLeads.length) {
+      state.inboxLeads.push(...newLeads);
+      lastLeadsSignature = leadsSignature(state.inboxLeads);
+      renderInbox();
+      renderSummary();
+      fbSetStatus("Firebase: " + newLeads.length + " nieuwe lead(s) opgehaald " + new Date().toLocaleTimeString("nl-NL"), true);
+    }
+    const requestsById = new Map(state.requests.map(r => [r.id, r]));
+    let requestsChanged = false;
+    requestDocs.forEach(d => {
+      const r = d.data;
+      if (!r || !r.id) return;
+      const existing = requestsById.get(r.id);
+      if (!existing) { state.requests.push(r); requestsChanged = true; }
+      else if (JSON.stringify(existing) !== JSON.stringify(r)) { Object.assign(existing, r); requestsChanged = true; }
+    });
+    if (requestsChanged) renderRequests();
+  } catch (e) {
+    console.warn("Achtergrond-check op nieuwe leads/aanvragen mislukt", e);
+  }
+}
+
 async function fbInit() {
   // Firestore is de enige databron: er is geen lokale seed-data en geen
   // localStorage-cache meer. Bij elke pagina-load wordt alles vers opgehaald.
@@ -1636,6 +1709,8 @@ async function fbInit() {
     renderAll();
     renderInbox();
     renderRequests();
+    if (leadPollTimer) clearInterval(leadPollTimer);
+    leadPollTimer = setInterval(pollForUpdates, 45000);
   } catch (e) {
     console.warn("Firebase init mislukt", e);
     fbSetStatus("Firebase: niet verbonden — geen data geladen. Vernieuw de pagina om opnieuw te proberen.", false);
@@ -4305,6 +4380,15 @@ function toggleTheme() { setTheme(currentTheme() === "dark" ? "light" : "dark");
 on("theme-toggle", "click", toggleTheme);
 on("theme-toggle-gate", "click", toggleTheme);
 
+on("logout-btn", "click", () => {
+  if (!confirm("Uitloggen op dit apparaat? Je moet dan opnieuw inloggen met wachtwoord + TOTP.")) return;
+  clearAuthSession();
+  fbAuth = null;
+  firebaseReady = false;
+  if (leadPollTimer) { clearInterval(leadPollTimer); leadPollTimer = null; }
+  window.location.reload();
+});
+
 try {
   populateDealNodeFilter();
   renderAll();
@@ -4313,6 +4397,11 @@ try {
 } catch (e) {
   console.error("mopromax dashboard: init render failed", e);
 }
+
+// Probeer eerst stil door te loggen met een bewaard refreshToken uit deze
+// browser-sessie; lukt dat niet, dan blijft de normale auth-gate (met
+// wachtwoord + TOTP) gewoon staan zoals-ie al standaard zichtbaar is.
+tryResumeSession();
 </script>
 </body>
 </html>
