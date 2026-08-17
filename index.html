@@ -318,16 +318,9 @@
   th.sortable:hover { color: var(--text); }
 
   /* ---------- Salescall / Cliëntanalyse (vast tabblad) ---------- */
-  .sc-layout { display: grid; grid-template-columns: 260px 1fr; gap: 18px; align-items: start; }
-  .sc-queue-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; position: sticky; top: 14px; max-height: calc(100vh - 100px); overflow-y: auto; }
-  .sc-queue-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-  .sc-queue-item { display: block; width: 100%; text-align: left; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px; margin-bottom: 7px; cursor: pointer; font-family: inherit; }
-  .sc-queue-item:hover { border-color: var(--text-tertiary); }
-  .sc-queue-item.active { background: var(--ink); border-color: var(--ink); }
-  .sc-queue-item.active .sc-queue-name, .sc-queue-item.active .sc-queue-meta { color: var(--ink-text); }
-  .sc-queue-name { font-size: 12.5px; font-weight: 700; color: var(--text); display: block; }
-  .sc-queue-meta { font-size: 11px; color: var(--text-secondary); display: block; margin-top: 2px; }
-  .sc-queue-item .stage-age { margin-top: 4px; }
+  .sc-list-row { cursor: pointer; }
+  .sc-list-row.sc-row-lost td { color: var(--text-tertiary); }
+  .sc-list-row.sc-row-lost td:first-child b { color: var(--text-secondary); }
   .sc-workspace { min-width: 0; }
   .sc-sticky-head { position: sticky; top: 0; z-index: 8; background: var(--bg); padding-top: 4px; padding-bottom: 12px; margin-bottom: 4px; border-bottom: 1px solid var(--border); box-shadow: 0 4px 10px rgb(var(--shadow-rgb) / 0.05); }
   #sc-outcome-bar { scroll-margin-top: 130px; }
@@ -411,7 +404,6 @@
      eruitziet, of je nu in licht- of donkermodus werkt. */
   .sc-agreement { display: block; width: 100%; box-sizing: border-box; white-space: pre-wrap; font-family: Georgia, "Times New Roman", serif; font-size: 13px; line-height: 1.6; background: #fdfcfa; color: #1c1c1e; border: 1px solid #ddd; border-radius: 8px; padding: 26px 30px; min-height: 320px; max-height: 620px; overflow: auto; resize: vertical; box-shadow: 0 1px 4px rgb(0 0 0 / 0.08); }
   #sc-status.status { font-size: 11.5px; color: var(--text-secondary); align-self: center; }
-  @media (max-width: 900px) { .sc-layout { grid-template-columns: 1fr; } .sc-queue-panel { position: static; max-height: none; } }
   @media (max-width: 760px) { .sc-svc-grid { grid-template-columns: 1fr; } .sc-row2 { grid-template-columns: 1fr; } }
 
   /* ---------- Agenda / terugbelafspraken ---------- */
@@ -890,34 +882,48 @@
 
 <!-- ===================== SALESCALL / CLIËNTANALYSE (vast tabblad, geen popup) ===================== -->
 <div class="section" id="section-salescall">
-  <div class="sc-layout">
 
-    <!-- Wachtrij: leads die nog een salescall-stap nodig hebben -->
-    <div class="sc-queue-panel">
-      <div class="sc-queue-head">
-        <div class="panel-title" style="margin:0;">Wachtrij</div>
-        <span class="hint2" id="sc-queue-count"></span>
+  <!-- Overzicht: ALLE leads met hun status erachter, i.p.v. een sidebar met
+       alleen de actieve wachtrij — zo zie je in één oogopslag ook wie
+       afgeboekt is en waarom, of wie in onderhoud zit. -->
+  <div class="panel" id="sc-list-view">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+      <div>
+        <div class="panel-title" style="margin:0;">Traject — alle leads</div>
+        <div class="panel-desc" id="sc-list-count"></div>
       </div>
-      <div id="sc-queue-list"></div>
     </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Bedrijf</th>
+            <th>Status</th>
+            <th>Tijd in fase</th>
+            <th style="width:110px;"></th>
+          </tr>
+        </thead>
+        <tbody id="sc-list-body"></tbody>
+      </table>
+    </div>
+    <div class="empty-msg" id="sc-list-empty" style="display:none;">Nog geen leads in het traject.</div>
+  </div>
 
-    <!-- Werkblad voor de geselecteerde lead -->
-    <div class="sc-workspace">
-      <div id="sc-empty-state" class="empty-msg" style="padding:60px 20px;">Kies een lead uit de wachtrij hiernaast om te beginnen.</div>
-
-      <div id="sc-active-lead" style="display:none;">
-        <!-- Compacte, altijd vastgeplakte navigatie: naam, stappen, snelkoppeling
-             naar afboeken. Blijft klein genoeg om op elk scherm te passen. -->
-        <div class="sc-sticky-head">
-          <div class="sc-page-head">
-            <div>
-              <h2 id="sc-title">Traject</h2>
-              <div class="sub" id="sc-subtitle"></div>
-            </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button class="btn danger" id="sc-jump-afboek-btn" type="button">&darr; Afboeken</button>
-              <button class="btn secondary" id="sc-next-lead-btn" type="button">Volgende lead &rarr;</button>
-            </div>
+  <!-- Werkblad voor de geselecteerde lead -->
+  <div class="sc-workspace" id="sc-active-lead" style="display:none;">
+    <!-- Compacte, altijd vastgeplakte navigatie: terug-knop, naam, stappen,
+         snelkoppeling naar afboeken. Blijft klein genoeg om op elk scherm te passen. -->
+    <div class="sc-sticky-head">
+      <button class="btn secondary small" id="sc-back-to-list-btn" type="button" style="margin-bottom:10px;">&larr; Alle leads</button>
+      <div class="sc-page-head">
+        <div>
+          <h2 id="sc-title">Traject</h2>
+          <div class="sub" id="sc-subtitle"></div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn danger" id="sc-jump-afboek-btn" type="button">&darr; Afboeken</button>
+          <button class="btn secondary" id="sc-next-lead-btn" type="button">Volgende lead &rarr;</button>
+        </div>
           </div>
           <div class="sc-steptabs" id="sc-steptabs"></div>
         </div>
@@ -981,9 +987,6 @@
              stap — niet bovenaan, dat voelde als een blokkade vóór je iets
              had kunnen invullen. -->
         <div id="sc-outcome-bar"></div>
-      </div>
-    </div>
-
   </div>
 </div>
 
@@ -1827,7 +1830,7 @@ function renderAll() {
   renderAttention();
   renderDealsTable();
   renderAgenda();
-  renderSalescallQueue();
+  renderSalescallList();
 }
 
 // Defensive event binding: never let a missing element halt the whole script.
@@ -1853,7 +1856,7 @@ try {
       const target = document.getElementById("section-" + btn.dataset.tab);
       if (target) target.classList.add("active");
       if (btn.dataset.tab === "agenda") renderAgenda();
-      if (btn.dataset.tab === "salescall") renderSalescallQueue();
+      if (btn.dataset.tab === "salescall") renderSalescallList();
     });
   });
 } catch (e) { console.error("tab-btn wiring failed", e); }
@@ -3093,7 +3096,7 @@ function loadSalescallLead(dealId) {
   if (!deal) return;
   scDealId = dealId;
   ensureSalescall(deal);
-  document.getElementById("sc-empty-state").style.display = "none";
+  document.getElementById("sc-list-view").style.display = "none";
   document.getElementById("sc-active-lead").style.display = "";
   document.getElementById("sc-title").textContent = deal.naam;
   document.getElementById("sc-subtitle").textContent = [deal.branche, deal.telefoon, nodeById[deal.node]?.label].filter(Boolean).join(" · ");
@@ -3108,8 +3111,15 @@ function loadSalescallLead(dealId) {
   renderKlaarBody(deal);
   renderOfferteMeta(deal);
   renderDocSections(deal);
-  renderSalescallQueue();
 }
+
+function closeSalescallWorkspace() {
+  document.getElementById("sc-active-lead").style.display = "none";
+  document.getElementById("sc-list-view").style.display = "";
+  scDealId = null;
+  renderSalescallList();
+}
+on("sc-back-to-list-btn", "click", closeSalescallWorkspace);
 
 // Stappenbalk: alle 6 fases altijd zichtbaar, zodat duidelijk is dat het
 // traject verder gaat dan alleen het gesprek — voltooide stappen krijgen een
@@ -3135,36 +3145,59 @@ on("sc-jump-afboek-btn", "click", () => {
   document.getElementById("sc-outcome-bar")?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
-// Wachtrij: alle deals die nog een salescall-stap nodig hebben, achterstallige
-// opvolging/langst-stilstaand eerst, zodat je nooit hoeft te kiezen wie eerst.
-function renderSalescallQueue() {
-  const list = document.getElementById("sc-queue-list");
-  const countEl = document.getElementById("sc-queue-count");
-  if (!list) return;
-  const queue = state.deals
-    .filter(d => SALESCALL_QUEUE_NODES.includes(d.node))
-    .sort((a, b) => (Number(dealFollowUpOverdue(b)) - Number(dealFollowUpOverdue(a))) || ((dealStageAge(b) || 0) - (dealStageAge(a) || 0)));
-  if (countEl) countEl.textContent = queue.length + (queue.length === 1 ? " lead" : " leads");
-  if (!queue.length) { list.innerHTML = `<div class="empty-msg" style="padding:20px 8px;">Wachtrij is leeg.</div>`; return; }
-  list.innerHTML = queue.map(d => {
-    const n = nodeById[d.node];
+// Status-tekst voor de overzichtstabel: bij een afgeboekte/gestopte deal
+// tonen we vanaf welke fase én met welke reden, bijv. "Gebeld — Weigering
+// gesprek — direct geen interesse om te praten", niet enkel de kale nodenaam.
+function dealStatusLabel(deal) {
+  const n = nodeById[deal.node];
+  if (!n) return "—";
+  if ((deal.node === 209 || deal.node === 210) && deal.afboekReden) {
+    const fromLabel = nodeById[deal.afboekVanNode]?.label;
+    return (fromLabel ? fromLabel + " — " : "") + deal.afboekReden;
+  }
+  return n.label;
+}
+
+// Overzicht: ALLE leads, niet alleen de actieve wachtrij — achterstallige
+// opvolging eerst, dan actieve trajectstappen, dan afgeboekt/onderhoud onderaan.
+function renderSalescallList() {
+  const tbody = document.getElementById("sc-list-body");
+  const countEl = document.getElementById("sc-list-count");
+  const emptyEl = document.getElementById("sc-list-empty");
+  if (!tbody) return;
+  const list = state.deals.slice().sort((a, b) =>
+    (Number(dealFollowUpOverdue(b)) - Number(dealFollowUpOverdue(a))) ||
+    (Number(SALESCALL_QUEUE_NODES.includes(b.node)) - Number(SALESCALL_QUEUE_NODES.includes(a.node))) ||
+    ((dealStageAge(b) || 0) - (dealStageAge(a) || 0))
+  );
+  if (countEl) countEl.textContent = list.length + (list.length === 1 ? " lead" : " leads");
+  if (!list.length) { tbody.innerHTML = ""; if (emptyEl) emptyEl.style.display = "block"; return; }
+  if (emptyEl) emptyEl.style.display = "none";
+  tbody.innerHTML = list.map(d => {
     const age = dealStageAge(d);
     const overdue = dealFollowUpOverdue(d);
-    return `<button type="button" class="sc-queue-item ${d.id === scDealId ? "active" : ""}" data-id="${esc(d.id)}">
-      <span class="sc-queue-name">${esc(d.naam)}</span>
-      <span class="sc-queue-meta">${n ? esc(n.label) : ""}</span>
-      ${age != null ? `<span class="stage-age ${overdue ? "overdue" : ""}">${overdue ? "opvolging verlopen" : age + " d. in fase"}</span>` : ""}
-    </button>`;
+    const lostOrStopped = d.node === 209 || d.node === 210;
+    return `<tr class="sc-list-row ${lostOrStopped ? "sc-row-lost" : ""}" data-id="${esc(d.id)}">
+      <td><b>${esc(d.naam)}</b>${d.branche ? `<div class="hint2">${esc(d.branche)}</div>` : ""}</td>
+      <td>${esc(dealStatusLabel(d))}</td>
+      <td>${age != null ? (overdue ? `<span class="stage-age overdue">opvolging verlopen</span>` : age + " d.") : "—"}</td>
+      <td><button type="button" class="btn secondary small sc-open-btn" data-id="${esc(d.id)}">Openen &rarr;</button></td>
+    </tr>`;
   }).join("");
-  list.querySelectorAll(".sc-queue-item").forEach(btn => btn.addEventListener("click", () => loadSalescallLead(btn.dataset.id)));
+  tbody.querySelectorAll(".sc-list-row").forEach(row => {
+    row.addEventListener("click", (e) => {
+      if (e.target.closest(".sc-open-btn")) return; // knop handelt zichzelf af, niet dubbel
+      loadSalescallLead(row.dataset.id);
+    });
+  });
 }
 
 on("sc-next-lead-btn", "click", () => {
-  const queue = state.deals.filter(d => SALESCALL_QUEUE_NODES.includes(d.node));
-  const idx = queue.findIndex(d => d.id === scDealId);
-  const next = queue[idx + 1] || queue.find(d => d.id !== scDealId);
+  const list = state.deals;
+  const idx = list.findIndex(d => d.id === scDealId);
+  const next = list[idx + 1] || list.find(d => d.id !== scDealId);
   if (next) loadSalescallLead(next.id);
-  else { document.getElementById("sc-active-lead").style.display = "none"; document.getElementById("sc-empty-state").style.display = ""; scDealId = null; renderSalescallQueue(); }
+  else closeSalescallWorkspace();
 });
 
 // De "Uitkomst"-balk bovenaan stap 1: vooruit naar de volgende fase, of
@@ -3400,7 +3433,7 @@ on("sc-mark-sent-btn", "click", () => {
   else saveState();
   renderAll();
   scSetStatus("Offerte gemarkeerd als verstuurd");
-  renderSalescallQueue();
+  renderSalescallList();
 });
 
 
