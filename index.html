@@ -3967,10 +3967,14 @@ function formatDocumentHtml(text) {
     if (trimmed && next !== undefined && /^=+$/.test(next.trim())) {
       closeTable(); html += `<h1 class="doc-h1">${esc(trimmed)}</h1>`; continue;
     }
+    if (/^Artikel\s+\d+/.test(trimmed)) {
+      closeTable(); html += `<h3 class="doc-h3">${esc(trimmed)}</h3>`;
+      if (next !== undefined && /^-{10,}$/.test(next.trim())) i++; // sla de bijbehorende lijn onder het artikelkopje over
+      continue;
+    }
     if (trimmed && next !== undefined && /^-{10,}$/.test(next.trim())) {
       closeTable(); html += `<h2 class="doc-h2">${esc(trimmed)}</h2>`; continue;
     }
-    if (/^Artikel\s+\d+/.test(trimmed)) { closeTable(); html += `<h3 class="doc-h3">${esc(trimmed)}</h3>`; continue; }
     if (line.includes("\t")) {
       closeTable();
       const cols = line.split("\t");
