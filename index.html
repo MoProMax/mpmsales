@@ -641,10 +641,6 @@
       </div>
       <div id="deals-count" class="panel-desc" style="margin-top:-4px;"></div>
       <div class="filters" style="align-items:flex-end;">
-        <div class="filter-group" style="min-width:220px;">
-          <label>Volgende actie (bijv. eerste belpoging, factuur versturen)</label>
-          <input type="text" id="deals-schedule-note" placeholder="Omschrijving van de actie...">
-        </div>
         <div class="filter-group">
           <label>Datum &amp; tijd</label>
           <input type="datetime-local" id="deals-schedule-when">
@@ -2773,25 +2769,21 @@ on("deals-select-all", "change", () => {
 on("deals-schedule-btn", "click", () => {
   const checked = Array.from(document.querySelectorAll(".deal-check:checked")).map(cb => cb.dataset.id);
   if (!checked.length) { alert("Selecteer eerst één of meer leads."); return; }
-  const noteInput = document.getElementById("deals-schedule-note");
   const whenInput = document.getElementById("deals-schedule-when");
-  const note = noteInput?.value.trim();
   const when = whenInput?.value;
   if (!when) { alert("Kies eerst een datum en tijd."); return; }
-  if (!note) { alert("Voer een omschrijving in voor de volgende actie."); return; }
 
   const now = new Date().toISOString();
   checked.forEach(dealId => {
     const deal = state.deals.find(d => d.id === dealId);
     if (!deal) return;
     if (!deal.salescall) deal.salescall = { answers: {}, services: {}, startedAt: now };
-    deal.salescall.callback = { scheduledAt: when, note, createdAt: now };
+    deal.salescall.callback = { scheduledAt: when, note: "Volgende actie", createdAt: now };
     deal.followUpAt = when.slice(0, 10);
   });
 
   saveState();
   renderAll();
-  if (noteInput) noteInput.value = "";
   if (whenInput) whenInput.value = "";
   const selectAll = document.getElementById("deals-select-all");
   if (selectAll) selectAll.checked = false;
