@@ -440,27 +440,33 @@
   .ag-kebab-menu button:hover { background: var(--surface-hover); }
   .ag-kebab-menu button.danger { color: var(--danger); }
 
-  /* ---------- Dag-view (tijdlijn) ---------- */
+  /* ---------- Week-view (tijdlijn 7 dagen) ---------- */
   .ag-day-back { background: none; border: 1px solid var(--border); border-radius: 7px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; color: var(--text); }
   .ag-day-back:hover { background: var(--surface-hover); }
-  .ag-day-title { font-size: 15px; font-weight: 700; }
+  .ag-day-title { font-size: 14px; font-weight: 700; }
   .ag-day-wrap { display: none; }
   .ag-day-wrap.active { display: block; }
-  .ag-day-scroll { display: flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; overflow-y: auto; max-height: 580px; margin-top: 12px; background: var(--surface); }
-  .ag-time-col { width: 52px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface-alt); }
-  .ag-time-lbl { height: 64px; display: flex; align-items: flex-start; padding: 3px 8px 0 0; font-size: 10.5px; color: var(--text-secondary); justify-content: flex-end; box-sizing: border-box; }
-  .ag-grid-col { flex: 1; position: relative; min-height: 640px; }
+  .ag-day-scroll { display: flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; overflow-y: auto; max-height: 600px; margin-top: 12px; background: var(--surface); }
+  .ag-time-col { width: 48px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface-alt); }
+  .ag-time-col-spacer { height: 30px; border-bottom: 1px solid var(--border); box-sizing: border-box; }
+  .ag-time-lbl { height: 64px; display: flex; align-items: flex-start; padding: 3px 6px 0 0; font-size: 10px; color: var(--text-secondary); justify-content: flex-end; box-sizing: border-box; }
+  .ag-week-grid { display: flex; flex: 1; min-width: 0; }
+  .ag-day-col { flex: 1; min-width: 0; border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+  .ag-day-col-hdr { height: 30px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; border-bottom: 1px solid var(--border); background: var(--surface-alt); flex-shrink: 0; box-sizing: border-box; }
+  .ag-day-col-hdr.today { color: var(--accent); }
+  .ag-day-col-body { position: relative; flex: 1; }
   .ag-hour-row { height: 64px; border-bottom: 1px solid var(--border); box-sizing: border-box; }
-  .ag-qrow { height: 16px; border-bottom: 1px dashed color-mix(in srgb, var(--border) 55%, transparent); box-sizing: border-box; pointer-events: none; }
-  .ag-slot { position: absolute; left: 0; right: 0; height: 16px; }
-  .ag-slot:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); cursor: pointer; }
-  .ag-appt { position: absolute; left: 6px; right: 6px; background: var(--accent-bg); border: 1.5px solid var(--accent); border-radius: 7px; padding: 4px 8px; font-size: 11.5px; cursor: grab; overflow: hidden; z-index: 10; box-sizing: border-box; transition: box-shadow .1s; }
-  .ag-appt:hover { box-shadow: 0 2px 10px rgb(var(--shadow-rgb)/.2); }
-  .ag-appt.dragging { opacity: .75; cursor: grabbing; box-shadow: 0 6px 20px rgb(var(--shadow-rgb)/.3); z-index: 100; }
-  .ag-appt .ap-time { font-size: 10px; font-weight: 700; color: var(--accent); }
-  .ag-appt .ap-name { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ag-appt .ap-note { font-size: 10.5px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ag-drop-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--accent); pointer-events: none; z-index: 50; display: none; }
+  .ag-qrow { height: 16px; border-bottom: 1px dashed color-mix(in srgb, var(--border) 50%, transparent); box-sizing: border-box; pointer-events: none; }
+  .ag-appt { position: absolute; left: 2px; right: 2px; background: var(--accent-bg); border: 1.5px solid var(--accent); border-radius: 6px; padding: 3px 5px; font-size: 10.5px; cursor: grab; overflow: hidden; z-index: 10; box-sizing: border-box; }
+  .ag-appt:hover { box-shadow: 0 2px 8px rgb(var(--shadow-rgb)/.2); }
+  .ag-appt.dragging { opacity: .0; }
+  .ag-appt .ap-time { font-size: 9.5px; font-weight: 700; color: var(--accent); line-height: 1.3; }
+  .ag-appt .ap-name { font-weight: 600; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ag-appt .ap-note { font-size: 10px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ag-drag-ghost { position: fixed; pointer-events: none; z-index: 9999; background: var(--accent-bg); border: 2px solid var(--accent); border-radius: 6px; padding: 3px 6px; font-size: 10.5px; box-shadow: 0 6px 20px rgb(var(--shadow-rgb)/.35); opacity: .9; min-width: 80px; max-width: 160px; }
+  .ag-drag-ghost .ap-time { font-size: 9.5px; font-weight: 700; color: var(--accent); }
+  .ag-drag-ghost .ap-name { font-weight: 600; font-size: 11px; }
+  .ag-col-hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 
   /* ---------- Responsief (mobiel) ---------- */
   .table-scroll { overflow-x: auto; }
@@ -688,15 +694,15 @@
       </div>
       <div id="agenda-cal" class="cal" style="margin-top:14px;"></div>
       <div class="ag-day-wrap" id="ag-day-wrap">
-        <div style="display:flex; align-items:center; gap:12px; margin-top:16px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-top:16px; flex-wrap:wrap;">
           <button class="ag-day-back" id="ag-day-back">← Terug</button>
-          <span class="ag-day-title" id="ag-day-title"></span>
+          <button class="btn secondary small" id="ag-week-prev" type="button">&lsaquo;</button>
+          <span class="ag-day-title" id="ag-day-title" style="min-width:240px; text-align:center;"></span>
+          <button class="btn secondary small" id="ag-week-next" type="button">&rsaquo;</button>
         </div>
         <div class="ag-day-scroll" id="ag-day-scroll">
           <div class="ag-time-col" id="ag-time-col"></div>
-          <div class="ag-grid-col" id="ag-grid-col">
-            <div class="ag-drop-line" id="ag-drop-line"></div>
-          </div>
+          <div class="ag-week-grid" id="ag-week-grid"></div>
         </div>
       </div>
     </div>
@@ -4512,11 +4518,11 @@ function agItem(c) {
 }
 
 /* =========================================================================
-   DAG-VIEW — tijdlijn 8:00-18:00, sleep afspraken naar nieuw tijdslot
+   WEEK-VIEW — tijdlijn 8:00-18:00, 7 dagen naast elkaar, sleep naar tijdslot
    ========================================================================= */
 const AG_START = 8, AG_END = 18, HOUR_PX = 64, SLOT_MIN = 15;
 const SLOT_PX = HOUR_PX / 4; // 16px per 15min
-const APPT_MIN = 30; // minimum weergavehoogte in minuten
+const APPT_MIN = 30;
 
 function minToTop(m) { return (m - AG_START * 60) / 60 * HOUR_PX; }
 function topToMin(px) { return Math.round((px / HOUR_PX * 60 + AG_START * 60) / SLOT_MIN) * SLOT_MIN; }
@@ -4525,130 +4531,174 @@ function fmtHM(totalMin) {
   return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
 }
 
-let agDayKey = null;
+let agWeekStart = null; // Date object: maandag van de zichtbare week
 
-function openDayView(key) {
-  agDayKey = key;
-  document.getElementById("ag-list-panel").style.display = "none";
-  document.getElementById("ag-day-wrap").classList.add("active");
-  // datum label
+function weekStartFor(key) {
   const [y, mo, d] = key.split("-").map(Number);
   const dt = new Date(y, mo - 1, d);
-  const label = dt.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  document.getElementById("ag-day-title").textContent = label.charAt(0).toUpperCase() + label.slice(1);
-  renderDayView();
+  const dow = (dt.getDay() + 6) % 7; // 0=Ma … 6=Zo
+  return new Date(y, mo - 1, d - dow);
+}
+
+function openDayView(key) {
+  agWeekStart = weekStartFor(key);
+  document.getElementById("ag-list-panel").style.display = "none";
+  document.getElementById("ag-day-wrap").classList.add("active");
+  renderWeekView();
 }
 
 function closeDayView() {
-  agDayKey = null;
+  agWeekStart = null;
   document.getElementById("ag-day-wrap").classList.remove("active");
   document.getElementById("ag-list-panel").style.display = "";
   agendaView.selectedKey = null;
   renderAgenda();
 }
 
-function renderDayView() {
-  const timeCol = document.getElementById("ag-time-col");
-  const gridCol = document.getElementById("ag-grid-col");
-  if (!timeCol || !gridCol) return;
+function shiftWeek(delta) {
+  if (!agWeekStart) return;
+  agWeekStart = new Date(agWeekStart.getFullYear(), agWeekStart.getMonth(), agWeekStart.getDate() + delta * 7);
+  renderWeekView();
+}
 
-  // Tijdlabels en uur-rijen
-  const hours = AG_END - AG_START; // 10
-  let lblHtml = "", gridHtml = '<div class="ag-drop-line" id="ag-drop-line"></div>';
+function renderWeekView() {
+  const timeCol = document.getElementById("ag-time-col");
+  const weekGrid = document.getElementById("ag-week-grid");
+  if (!timeCol || !weekGrid) return;
+
+  // Tijdlabels
+  let lblHtml = '<div class="ag-time-col-spacer"></div>';
   for (let h = AG_START; h < AG_END; h++) {
     lblHtml += `<div class="ag-time-lbl">${h}:00</div>`;
-    gridHtml += `<div class="ag-hour-row" data-h="${h}">
-      <div class="ag-qrow"></div><div class="ag-qrow"></div><div class="ag-qrow"></div>
-    </div>`;
   }
   timeCol.innerHTML = lblHtml;
-  gridCol.innerHTML = gridHtml;
 
-  // Afspraken voor deze dag
-  const cbs = agendaCallbacks().filter(c => dateKey(c.when) === agDayKey);
-  cbs.forEach(c => {
-    const d = c.deal;
-    const totalMin = c.when.getHours() * 60 + c.when.getMinutes();
-    const clampedMin = Math.max(AG_START * 60, Math.min(AG_END * 60 - APPT_MIN, totalMin));
-    const top = minToTop(clampedMin);
-    const height = Math.max(SLOT_PX * (APPT_MIN / SLOT_MIN), SLOT_PX * 2);
+  // Week-label in header
+  const endDay = new Date(agWeekStart.getFullYear(), agWeekStart.getMonth(), agWeekStart.getDate() + 6);
+  const fmt = d => d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
+  document.getElementById("ag-day-title").textContent = fmt(agWeekStart) + " – " + fmt(endDay) + " " + endDay.getFullYear();
 
-    const el = document.createElement("div");
-    el.className = "ag-appt";
-    el.dataset.id = d.id;
-    el.style.top = top + "px";
-    el.style.height = height + "px";
-    el.innerHTML = `<div class="ap-time">${fmtHM(clampedMin)} – ${fmtHM(clampedMin + APPT_MIN)}</div>
-      <div class="ap-name">${esc(d.naam)}</div>
-      ${c.note ? `<div class="ap-note">${esc(c.note)}</div>` : ""}`;
-    gridCol.appendChild(el);
-    wireApptDrag(el, d);
-  });
+  // Dag-kolommen
+  const todayKey = dateKey(new Date());
+  const allCbs = agendaCallbacks();
+  weekGrid.innerHTML = "";
 
-  // Scroll naar eerste afspraak of 8:00
-  const scroll = document.getElementById("ag-day-scroll");
-  if (scroll) {
-    const firstMin = cbs.length ? Math.max(AG_START * 60, cbs[0].when.getHours() * 60 + cbs[0].when.getMinutes() - 30) : AG_START * 60;
-    scroll.scrollTop = minToTop(firstMin);
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(agWeekStart.getFullYear(), agWeekStart.getMonth(), agWeekStart.getDate() + i);
+    const k = dateKey(day);
+    const isToday = k === todayKey;
+    const dayLabel = day.toLocaleDateString("nl-NL", { weekday: "short", day: "numeric" });
+
+    const col = document.createElement("div");
+    col.className = "ag-day-col";
+    col.innerHTML = `<div class="ag-day-col-hdr ${isToday ? "today" : ""}">${dayLabel}</div>
+      <div class="ag-day-col-body" data-date="${k}"></div>`;
+    weekGrid.appendChild(col);
+
+    const body = col.querySelector(".ag-day-col-body");
+
+    // Uur-rijen
+    for (let h = AG_START; h < AG_END; h++) {
+      const hr = document.createElement("div");
+      hr.className = "ag-hour-row";
+      hr.innerHTML = `<div class="ag-qrow"></div><div class="ag-qrow"></div><div class="ag-qrow"></div>`;
+      body.appendChild(hr);
+    }
+
+    // Afspraken van deze dag
+    allCbs.filter(c => dateKey(c.when) === k).forEach(c => {
+      const totalMin = c.when.getHours() * 60 + c.when.getMinutes();
+      const clampedMin = Math.max(AG_START * 60, Math.min(AG_END * 60 - APPT_MIN, totalMin));
+      const el = document.createElement("div");
+      el.className = "ag-appt";
+      el.dataset.id = c.deal.id;
+      el.style.top = minToTop(clampedMin) + "px";
+      el.style.height = SLOT_PX * (APPT_MIN / SLOT_MIN) + "px";
+      el.innerHTML = `<div class="ap-time">${fmtHM(clampedMin)}</div>
+        <div class="ap-name">${esc(c.deal.naam)}</div>
+        ${c.note ? `<div class="ap-note">${esc(c.note)}</div>` : ""}`;
+      body.appendChild(el);
+      wireApptDrag(el, c.deal);
+    });
   }
+
+  // Scroll naar 8:00
+  const scroll = document.getElementById("ag-day-scroll");
+  if (scroll) scroll.scrollTop = 0;
 }
 
 function wireApptDrag(el, deal) {
-  let dragging = false, startY = 0, startTop = 0, origMin = 0;
-  const dropLine = document.getElementById("ag-drop-line");
-  const gridCol = document.getElementById("ag-grid-col");
-
   el.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    dragging = true;
-    startY = e.clientY;
-    startTop = parseInt(el.style.top) || 0;
-    origMin = topToMin(startTop);
+
+    const origTop = parseInt(el.style.top) || 0;
+    const origMin = topToMin(origTop);
+    const origDate = el.closest(".ag-day-col-body")?.dataset.date;
+
+    // Ghost element dat met de muis meebeweegt
+    const ghost = document.createElement("div");
+    ghost.className = "ag-drag-ghost";
+    ghost.innerHTML = el.innerHTML;
+    ghost.style.width = el.offsetWidth + "px";
+    document.body.appendChild(ghost);
     el.classList.add("dragging");
 
-    const scrollEl = document.getElementById("ag-day-scroll");
-    const scrollStart = scrollEl ? scrollEl.scrollTop : 0;
+    let lastDate = origDate, lastMin = origMin;
 
-    const onMove = (ev) => {
-      if (!dragging) return;
-      const scrollNow = scrollEl ? scrollEl.scrollTop : 0;
-      const delta = (ev.clientY - startY) + (scrollNow - scrollStart);
-      const gridTop = startTop + delta;
-      const snappedMin = Math.max(AG_START * 60, Math.min(AG_END * 60 - APPT_MIN, topToMin(gridTop)));
-      const snappedTop = minToTop(snappedMin);
-      el.style.top = snappedTop + "px";
-      if (dropLine) { dropLine.style.top = snappedTop + "px"; dropLine.style.display = "block"; }
-      el.querySelector(".ap-time").textContent = fmtHM(snappedMin) + " – " + fmtHM(snappedMin + APPT_MIN);
+    const moveGhost = (ev) => {
+      ghost.style.left = (ev.clientX + 10) + "px";
+      ghost.style.top = (ev.clientY - 16) + "px";
+
+      // Welke dag-kolom zit de muis boven?
+      const bodies = document.querySelectorAll(".ag-day-col-body");
+      let targetBody = null;
+      bodies.forEach(b => {
+        const r = b.getBoundingClientRect();
+        if (ev.clientX >= r.left && ev.clientX <= r.right) targetBody = b;
+      });
+
+      if (targetBody) {
+        const r = targetBody.getBoundingClientRect();
+        const scrollTop = document.getElementById("ag-day-scroll").scrollTop;
+        const relY = ev.clientY - r.top + scrollTop - 0; // r.top al relatief aan viewport
+        const snappedMin = Math.max(AG_START * 60, Math.min(AG_END * 60 - APPT_MIN, topToMin(relY)));
+        lastDate = targetBody.dataset.date;
+        lastMin = snappedMin;
+        ghost.querySelector(".ap-time").textContent = fmtHM(snappedMin);
+        // Highlight doel-kolom
+        document.querySelectorAll(".ag-day-col-body").forEach(b => b.classList.remove("ag-col-hover"));
+        targetBody.classList.add("ag-col-hover");
+      }
     };
 
     const onUp = () => {
-      dragging = false;
+      ghost.remove();
       el.classList.remove("dragging");
-      if (dropLine) dropLine.style.display = "none";
-      document.removeEventListener("mousemove", onMove);
+      document.querySelectorAll(".ag-day-col-body").forEach(b => b.classList.remove("ag-col-hover"));
+      document.removeEventListener("mousemove", moveGhost);
       document.removeEventListener("mouseup", onUp);
 
-      const newMin = topToMin(parseInt(el.style.top) || 0);
-      if (newMin === origMin) return;
+      if (lastDate === origDate && lastMin === origMin) return;
 
-      // Pas scheduledAt aan
       if (!deal.salescall) deal.salescall = { answers: {}, services: {} };
       if (!deal.salescall.callback) deal.salescall.callback = {};
-      const cb = deal.salescall.callback;
-      const [y, mo, d2] = agDayKey.split("-").map(Number);
-      const newDate = new Date(y, mo - 1, d2, Math.floor(newMin / 60), newMin % 60);
-      cb.scheduledAt = newDate.toISOString().slice(0, 16);
-      deal.followUpAt = agDayKey;
+      const [y, mo, d2] = lastDate.split("-").map(Number);
+      const newDate = new Date(y, mo - 1, d2, Math.floor(lastMin / 60), lastMin % 60);
+      deal.salescall.callback.scheduledAt = newDate.toISOString().slice(0, 16);
+      deal.followUpAt = lastDate;
       saveState();
+      renderWeekView();
     };
 
-    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mousemove", moveGhost);
     document.addEventListener("mouseup", onUp);
   });
 }
 
 on("ag-day-back", "click", closeDayView);
+on("ag-week-prev", "click", () => shiftWeek(-1));
+on("ag-week-next", "click", () => shiftWeek(1));
 
 function renderAgenda() {
   const cal = document.getElementById("agenda-cal");
