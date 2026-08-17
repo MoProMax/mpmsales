@@ -467,6 +467,8 @@
   .ag-drag-ghost .ap-time { font-size: 9.5px; font-weight: 700; color: var(--accent); }
   .ag-drag-ghost .ap-name { font-weight: 600; font-size: 11px; }
   .ag-col-hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .ag-appt-popup { position: fixed; z-index: 10000; background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 28px rgb(var(--shadow-rgb)/.3); padding: 14px 16px; width: 230px; }
+  .ag-appt-popup .ag-popup-dt { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg, var(--bg)); color: var(--text); font-size: 13px; }
 
   /* ---------- Responsief (mobiel) ---------- */
   .table-scroll { overflow-x: auto; }
@@ -4706,68 +4708,131 @@ function wireApptDrag(el, deal) {
     if (e.button !== 0) return;
     e.preventDefault();
 
+    const startX = e.clientX, startY = e.clientY;
     const origTop = parseInt(el.style.top) || 0;
     const origMin = topToMin(origTop);
     const origDate = el.closest(".ag-day-col-body")?.dataset.date;
 
-    // Ghost element dat met de muis meebeweegt
-    const ghost = document.createElement("div");
-    ghost.className = "ag-drag-ghost";
-    ghost.innerHTML = el.innerHTML;
-    ghost.style.width = el.offsetWidth + "px";
-    document.body.appendChild(ghost);
-    el.classList.add("dragging");
-
+    let isDragging = false;
+    let ghost = null;
     let lastDate = origDate, lastMin = origMin;
 
-    const moveGhost = (ev) => {
-      ghost.style.left = (ev.clientX + 10) + "px";
-      ghost.style.top = (ev.clientY - 16) + "px";
+    const onMove = (ev) => {
+      const dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if (!isDragging) {
+        if (Math.sqrt(dx * dx + dy * dy) < 6) return; // drempelwaarde: pas dan starten
+        isDragging = true;
+        ghost = document.createElement("div");
+        ghost.className = "ag-drag-ghost";
+        ghost.innerHTML = el.innerHTML;
+        ghost.style.width = Math.max(120, el.offsetWidth) + "px";
+        document.body.appendChild(ghost);
+        el.classList.add("dragging");
+        document.querySelector(".ag-appt-popup")?.remove();
+      }
+
+      ghost.style.left = (ev.clientX + 12) + "px";
+      ghost.style.top = (ev.clientY - 20) + "px";
 
       // Welke dag-kolom zit de muis boven?
-      const bodies = document.querySelectorAll(".ag-day-col-body");
       let targetBody = null;
-      bodies.forEach(b => {
+      document.querySelectorAll(".ag-day-col-body").forEach(b => {
         const r = b.getBoundingClientRect();
         if (ev.clientX >= r.left && ev.clientX <= r.right) targetBody = b;
       });
 
       if (targetBody) {
         const r = targetBody.getBoundingClientRect();
-        const scrollTop = document.getElementById("ag-day-scroll").scrollTop;
-        const relY = ev.clientY - r.top + scrollTop - 0; // r.top al relatief aan viewport
+        // getBoundingClientRect geeft positie t.o.v. viewport — scrollTop is
+        // al verdisconteerd daarin, dus NIET nog eens optellen.
+        const relY = ev.clientY - r.top;
         const snappedMin = Math.max(AG_START * 60, Math.min(AG_END * 60 - APPT_MIN, topToMin(relY)));
         lastDate = targetBody.dataset.date;
         lastMin = snappedMin;
-        ghost.querySelector(".ap-time").textContent = fmtHM(snappedMin);
-        // Highlight doel-kolom
+        const timeEl = ghost.querySelector(".ap-time");
+        if (timeEl) timeEl.textContent = fmtHM(snappedMin) + " – " + fmtHM(snappedMin + APPT_MIN);
         document.querySelectorAll(".ag-day-col-body").forEach(b => b.classList.remove("ag-col-hover"));
         targetBody.classList.add("ag-col-hover");
       }
     };
 
     const onUp = () => {
-      ghost.remove();
-      el.classList.remove("dragging");
-      document.querySelectorAll(".ag-day-col-body").forEach(b => b.classList.remove("ag-col-hover"));
-      document.removeEventListener("mousemove", moveGhost);
+      document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
 
-      if (lastDate === origDate && lastMin === origMin) return;
+      if (!isDragging) {
+        // Gewone klik: toon bewerk-popup
+        showApptEditPopup(el, deal);
+        return;
+      }
 
+      if (ghost) ghost.remove();
+      el.classList.remove("dragging");
+      document.querySelectorAll(".ag-day-col-body").forEach(b => b.classList.remove("ag-col-hover"));
+
+      if (lastDate === origDate && lastMin === origMin) return;
       if (!deal.salescall) deal.salescall = { answers: {}, services: {} };
       if (!deal.salescall.callback) deal.salescall.callback = {};
-      const [y, mo, d2] = lastDate.split("-").map(Number);
-      const newDate = new Date(y, mo - 1, d2, Math.floor(lastMin / 60), lastMin % 60);
-      deal.salescall.callback.scheduledAt = newDate.toISOString().slice(0, 16);
+      const hh = String(Math.floor(lastMin / 60)).padStart(2, "0");
+      const mm = String(lastMin % 60).padStart(2, "0");
+      deal.salescall.callback.scheduledAt = lastDate + "T" + hh + ":" + mm;
       deal.followUpAt = lastDate;
       saveState();
       renderWeekView();
     };
 
-    document.addEventListener("mousemove", moveGhost);
+    document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   });
+}
+
+function showApptEditPopup(anchorEl, deal) {
+  document.querySelector(".ag-appt-popup")?.remove();
+  const cb = deal.salescall?.callback;
+  const curVal = cb?.scheduledAt ? cb.scheduledAt.slice(0, 16) : "";
+
+  const popup = document.createElement("div");
+  popup.className = "ag-appt-popup";
+  popup.innerHTML = `
+    <div style="font-size:12.5px; font-weight:700; margin-bottom:8px;">${esc(deal.naam)}</div>
+    <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">Datum &amp; tijd</label>
+    <input class="ag-popup-dt" type="datetime-local" value="${esc(curVal)}">
+    <div style="display:flex; gap:6px; margin-top:10px;">
+      <button class="btn small ag-popup-save" style="flex:1;">Opslaan</button>
+      <button class="btn secondary small ag-popup-cancel">✕</button>
+    </div>`;
+
+  // Positie naast het afspraakvak
+  const rect = anchorEl.getBoundingClientRect();
+  let left = rect.right + 10;
+  if (left + 230 > window.innerWidth) left = rect.left - 240;
+  popup.style.left = Math.max(8, left) + "px";
+  popup.style.top = Math.max(8, rect.top) + "px";
+  document.body.appendChild(popup);
+  popup.querySelector(".ag-popup-dt").focus();
+
+  popup.querySelector(".ag-popup-save").addEventListener("click", () => {
+    const newVal = popup.querySelector(".ag-popup-dt").value;
+    if (!newVal) { popup.remove(); return; }
+    if (!deal.salescall) deal.salescall = { answers: {}, services: {} };
+    if (!deal.salescall.callback) deal.salescall.callback = {};
+    deal.salescall.callback.scheduledAt = newVal;
+    deal.followUpAt = newVal.slice(0, 10);
+    saveState();
+    popup.remove();
+    // Navigeer naar de week van de nieuwe datum
+    agWeekStart = weekStartFor(newVal.slice(0, 10));
+    renderWeekView();
+    renderAgenda();
+  });
+
+  popup.querySelector(".ag-popup-cancel").addEventListener("click", () => popup.remove());
+
+  setTimeout(() => {
+    document.addEventListener("mousedown", function outsideClose(ev) {
+      if (!popup.contains(ev.target)) { popup.remove(); document.removeEventListener("mousedown", outsideClose); }
+    });
+  }, 150);
 }
 
 on("ag-day-back", "click", closeDayView);
