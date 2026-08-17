@@ -357,6 +357,7 @@
   .oc-afboek-confirm-row .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .oc-reason-count { font-size: 11px; color: var(--text-tertiary); font-weight: 400; text-transform: none; letter-spacing: normal; }
   .sc-stage-pane { }
+  .sc-doc-block:empty { display: none; }
   .sc-body { }
   .sc-sec { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
   .sc-sec > h3 { margin: 0 0 4px; font-size: 14px; }
@@ -922,14 +923,31 @@
         <!-- STAP 2: Offerte -->
         <div class="sc-stage-pane" data-stage="offerte" style="display:none;">
           <div class="sc-guide" style="margin-bottom:14px;">
-            <b>Offerte = de gegenereerde functionaliteitenovereenkomst.</b> Controleer de tekst, kopieer of download hem, en markeer daarna als verstuurd — dat schuift de deal door naar &ldquo;Offerte verstuurd&rdquo;.
+            Drie losse documenten: de <b>offerte</b> (prijzen), de <b>overeenkomst</b> (het juridische contract —
+            de functionaliteitenanalyse zit daar als bijlage bij) en, als er onderhoud is afgesproken, de
+            <b>onderhoudsovereenkomst</b>. Genereer ze hieronder, controleer de tekst en markeer daarna als
+            verstuurd — dat schuift de deal door naar &ldquo;Offerte verstuurd&rdquo;.
           </div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
-            <button class="btn" id="sc-generate" type="button">Genereer functionaliteitenovereenkomst</button>
+          <div class="sc-sec">
+            <h3>Opleverdatum &amp; planning</h3>
+            <div class="sc-row2">
+              <div class="sc-q"><label>Geplande opleverdatum</label><input type="date" class="sc-answer" data-key="offerte_opleverdatum" id="sc-offerte-opleverdatum"></div>
+              <div class="sc-q"><label>Betalingscondities</label><select class="sc-answer" data-key="offerte_betaalcondities" id="sc-offerte-betaalcondities">
+                <option value="50/50">50% vooraf, 50% bij oplevering</option>
+                <option value="100_vooraf">100% vooraf</option>
+                <option value="100_oplevering">100% bij oplevering</option>
+                <option value="30/70">30% vooraf, 70% bij oplevering</option>
+              </select></div>
+            </div>
+          </div>
+          <div id="sc-doc-offerte" class="sc-doc-block"></div>
+          <div id="sc-doc-contract" class="sc-doc-block"></div>
+          <div id="sc-doc-bijlage" class="sc-doc-block"></div>
+          <div id="sc-doc-onderhoud" class="sc-doc-block"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin: 4px 0 14px;">
             <button class="btn secondary" id="sc-mark-sent-btn" type="button">Markeer als verstuurd &rarr;</button>
             <span class="status" id="sc-status"></span>
           </div>
-          <div id="sc-agreement-step-wrap"></div>
         </div>
 
         <!-- STAP 3: Betaald / geaccepteerd -->
@@ -2894,6 +2912,28 @@ const SC_PAKKET_OPTS = [
 ];
 const SC_ONDERHOUD_OPTS = [["0", "Geen"], ["19", "Basis — €19/mnd"], ["35", "Priority — €35/mnd"]];
 
+// Officiële bedrijfsgegevens voor op offerte/contract. KVK en BTW zijn hier
+// bewust NEP (op verzoek) — nog invullen zodra de echte nummers bekend zijn,
+// dus duidelijk gemarkeerd zodat niemand ze per ongeluk als echt verstuurt.
+const MPM_BEDRIJFSGEGEVENS = {
+  naam: "Mo Pro Max",
+  adres: "[ADRES NOG INVULLEN]",
+  postcodePlaats: "[POSTCODE + PLAATS NOG INVULLEN]",
+  kvk: "00000000 — PLACEHOLDER, nog invullen",
+  btw: "NL000000000B01 — PLACEHOLDER, nog invullen",
+  email: "info@mopromax.com",
+  website: "mopromax.com",
+  btwPercentage: 21
+};
+function mpmBrandHeader() {
+  return "MO PRO MAX";
+}
+function fmtEuroBtw(bedragExcl) {
+  const excl = Number(bedragExcl) || 0;
+  const btw = Math.round(excl * MPM_BEDRIJFSGEGEVENS.btwPercentage) / 100;
+  return { excl, btw, incl: Math.round((excl + btw) * 100) / 100 };
+}
+
 let scDealId = null;
 
 function scKey(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, ""); }
@@ -2974,9 +3014,8 @@ function loadSalescallLead(dealId) {
   renderControleBody(deal);
   renderAanpassingenBody(deal);
   renderKlaarBody(deal);
-  const wrap = document.getElementById("sc-agreement-step-wrap");
-  if (wrap) wrap.innerHTML = "";
-  if (deal.salescall.agreement) showAgreement(deal, deal.salescall.agreement);
+  renderOfferteMeta(deal);
+  renderDocSections(deal);
   renderSalescallQueue();
 }
 
@@ -3149,7 +3188,7 @@ function renderBetalingBody(deal) {
       <h3>Betaald / geaccepteerd</h3>
       <div class="sc-guide"><b>Aanpak:</b><ul>
         <li>Vink af zodra het schriftelijke/mondelinge akkoord er is én zodra de (aan)betaling binnen is — dit hoeft niet gelijktijdig.</li>
-        <li>Gebruik "Vooruit" hierboven pas als beide rond zijn.</li>
+        <li>Gebruik "Vooruit" hieronder pas als beide rond zijn.</li>
       </ul></div>
       ${scCheckField(sc, "betaling_akkoord", "Opdracht/offerte akkoord ontvangen van klant")}
       ${scCheckField(sc, "betaling_ontvangen", "Betaling (aanbetaling of volledig) ontvangen")}
@@ -3245,7 +3284,7 @@ function renderKlaarBody(deal) {
   el.innerHTML = `
     <div class="sc-sec">
       <h3>Opgeleverd</h3>
-      <div class="sc-guide">Project is live opgeleverd. Leg de definitieve datum en eventuele onderhoudsafspraken vast, en klik daarna hierboven op &ldquo;Onderhoud actief &rarr;&rdquo; om deze lead af te ronden.</div>
+      <div class="sc-guide">Project is live opgeleverd. Leg de definitieve datum en eventuele onderhoudsafspraken vast, en klik daarna hieronder op &ldquo;Onderhoud actief &rarr;&rdquo; om deze lead af te ronden.</div>
       ${scDateField(sc, "klaar_datum", "Definitieve opleverdatum")}
       ${scNoteField(sc, "klaar_notitie", "Onderhoudsafspraken / vervolgnotities", "onderhoudscontract, vervolgwensen, evaluatiemoment...")}
     </div>`;
@@ -3258,12 +3297,13 @@ function renderKlaarBody(deal) {
 on("sc-mark-sent-btn", "click", () => {
   const deal = state.deals.find(d => d.id === scDealId);
   if (!deal) return;
-  if (!deal.salescall?.agreement) {
-    alert("Genereer eerst de functionaliteitenovereenkomst (knop hierboven) voordat je 'm als verstuurd markeert.");
+  const docs = deal.salescall?.docs || {};
+  if (!docs.offerte || !docs.contract) {
+    alert("Genereer eerst de offerte én de overeenkomst (hierboven) voordat je ze als verstuurd markeert.");
     return;
   }
   if (!Array.isArray(deal.activiteiten)) deal.activiteiten = [];
-  deal.activiteiten.push({ at: new Date().toISOString(), type: "Gemaild", text: "Offerte + functionaliteitenovereenkomst verstuurd" });
+  deal.activiteiten.push({ at: new Date().toISOString(), type: "Gemaild", text: "Offerte + overeenkomst" + (docs.onderhoud ? " + onderhoudsovereenkomst" : "") + " verstuurd" });
   if (deal.node !== 204 && outgoing(deal.node).includes(204)) attemptMoveWithReason(deal, deal.node, 204, "");
   else saveState();
   renderAll();
@@ -3374,7 +3414,6 @@ function renderSalescallBody(deal) {
   </div>`;
 
   body.innerHTML = html;
-  if (sc.agreement) showAgreement(deal, sc.agreement);
 
   const pakketSel = document.getElementById("sc-pakket");
   const onderhoudSel = document.getElementById("sc-onderhoud");
@@ -3562,7 +3601,7 @@ function buildAgreement(deal) {
   const [pkgNaam, pkgPrijs] = (deal.pakketKey || "Starter|199").split("|");
   const rule = "-".repeat(50);
   const L = [];
-  L.push("MO PRO MAX — FUNCTIONALITEITENOVEREENKOMST");
+  L.push("BIJLAGE A — FUNCTIONALITEITENANALYSE");
   L.push("=".repeat(50));
   L.push("Bedrijf   : " + (deal.naam || ""));
   const contactNaam = deal.contact || sc.answers.contact;
@@ -3609,10 +3648,287 @@ function buildAgreement(deal) {
   });
 
   L.push("");
-  L.push("Deze overeenkomst vat de besproken behoefte en gekozen functionaliteiten");
-  L.push("samen. Prijzen zijn indicatief tot definitief akkoord.");
+  L.push("Deze bijlage vat de besproken behoefte en gekozen functionaliteiten samen");
+  L.push("en maakt onderdeel uit van de overeenkomst waar hij bij hoort. Ondertekening");
+  L.push("vindt plaats op de overeenkomst zelf, niet op deze bijlage.");
+  return L.join("\n");
+}
+
+// STAP 2, document 1/3 — OFFERTE: prijzen, BTW, geldigheid. Dit is het
+// document waarop de klant "ja" zegt; de overeenkomst is het juridische
+// vervolg daarop.
+function buildOfferte(deal) {
+  const sc = ensureSalescall(deal);
+  const [pkgNaam, pkgPrijs] = (deal.pakketKey || "Starter|199").split("|");
+  const onderhoud = Number(deal.onderhoud) || 0;
+  const eenmalig = Number(deal.waarde) || Number(pkgPrijs) || 0;
+  const eenmaligBtw = fmtEuroBtw(eenmalig);
+  const onderhoudBtw = fmtEuroBtw(onderhoud);
+  const opleverdatum = sc.answers.offerte_opleverdatum ? fmtDate(sc.answers.offerte_opleverdatum) : "in overleg";
+  const geldigTot = new Date(Date.now() + 30 * 86400000).toLocaleDateString("nl-NL");
+  const offertenr = "OF-" + (deal.id || "").toString().slice(0, 6).toUpperCase().padEnd(6, "0") + "-" + new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const rule = "-".repeat(50);
+  const L = [];
+  L.push(mpmBrandHeader());
+  L.push(MPM_BEDRIJFSGEGEVENS.adres + " · " + MPM_BEDRIJFSGEGEVENS.postcodePlaats);
+  L.push("KVK: " + MPM_BEDRIJFSGEGEVENS.kvk + " · BTW: " + MPM_BEDRIJFSGEGEVENS.btw);
+  L.push(MPM_BEDRIJFSGEGEVENS.email + " · " + MPM_BEDRIJFSGEGEVENS.website);
+  L.push("=".repeat(50));
+  L.push("OFFERTE " + offertenr);
+  L.push("=".repeat(50));
+  L.push("Datum        : " + new Date().toLocaleDateString("nl-NL"));
+  L.push("Geldig tot   : " + geldigTot);
   L.push("");
-  L.push("Akkoord klant: ____________________    Datum: ____________");
+  L.push("Aan (klant)");
+  L.push(rule);
+  L.push("Bedrijf   : " + (deal.naam || ""));
+  const contactNaam = deal.contact || sc.answers.contact;
+  if (contactNaam) L.push("Contact   : " + contactNaam);
+  if (deal.telefoon) L.push("Telefoon  : " + deal.telefoon);
+  if (deal.email) L.push("E-mail    : " + deal.email);
+  if (sc.answers.bedrijf_adres) L.push("Adres     : " + sc.answers.bedrijf_adres);
+  L.push("");
+  L.push("Diensten & prijs");
+  L.push(rule);
+  L.push("Pakket " + pkgNaam + " (websitebouw, eenmalig)");
+  L.push("  Prijs excl. BTW      : €" + eenmaligBtw.excl.toFixed(2));
+  L.push("  BTW (" + MPM_BEDRIJFSGEGEVENS.btwPercentage + "%)            : €" + eenmaligBtw.btw.toFixed(2));
+  L.push("  Prijs incl. BTW      : €" + eenmaligBtw.incl.toFixed(2));
+  if (onderhoud) {
+    L.push("");
+    L.push("Onderhoudsabonnement (maandelijks, doorlopend)");
+    L.push("  Prijs excl. BTW      : €" + onderhoudBtw.excl.toFixed(2) + "/mnd");
+    L.push("  BTW (" + MPM_BEDRIJFSGEGEVENS.btwPercentage + "%)            : €" + onderhoudBtw.btw.toFixed(2) + "/mnd");
+    L.push("  Prijs incl. BTW      : €" + onderhoudBtw.incl.toFixed(2) + "/mnd");
+    L.push("  Zie de aparte onderhoudsovereenkomst voor de voorwaarden.");
+  }
+  L.push("");
+  L.push("Planning");
+  L.push(rule);
+  L.push("Geplande opleverdatum: " + opleverdatum);
+  L.push("");
+  L.push("Betalingscondities");
+  L.push(rule);
+  const condities = { "50/50": "50% aanbetaling bij akkoord, 50% bij oplevering", "100_vooraf": "100% vooraf, bij akkoord", "100_oplevering": "100% bij oplevering", "30/70": "30% aanbetaling bij akkoord, 70% bij oplevering" };
+  L.push(condities[sc.answers.offerte_betaalcondities] || condities["50/50"]);
+  L.push("");
+  L.push("Deze offerte is 30 dagen geldig vanaf de datum hierboven. Bij akkoord ontvangt u");
+  L.push("de bijbehorende overeenkomst ter ondertekening.");
+  L.push("");
+  L.push("Akkoord (naam + handtekening): ____________________    Datum: ____________");
+  return L.join("\n");
+}
+
+// STAP 2, document 2/3 — OVEREENKOMST (het juridische contract). De
+// functionaliteitenanalyse (buildAgreement) wordt als Bijlage A toegevoegd,
+// niet als het hoofddocument zelf.
+function buildContract(deal) {
+  const sc = ensureSalescall(deal);
+  const [pkgNaam, pkgPrijs] = (deal.pakketKey || "Starter|199").split("|");
+  const eenmalig = Number(deal.waarde) || Number(pkgPrijs) || 0;
+  const eenmaligBtw = fmtEuroBtw(eenmalig);
+  const opleverdatum = sc.answers.offerte_opleverdatum ? fmtDate(sc.answers.offerte_opleverdatum) : "in onderling overleg vast te stellen";
+  const condities = { "50/50": "50% aanbetaling bij ondertekening, 50% bij oplevering", "100_vooraf": "100% vooraf, bij ondertekening", "100_oplevering": "100% bij oplevering", "30/70": "30% aanbetaling bij ondertekening, 70% bij oplevering" };
+  const betaalconditie = condities[sc.answers.offerte_betaalcondities] || condities["50/50"];
+  const contactNaam = deal.contact || sc.answers.contact || "____________________";
+  const L = [];
+  L.push(mpmBrandHeader());
+  L.push("=".repeat(56));
+  L.push("OVEREENKOMST VAN OPDRACHT — BOUW VAN EEN WEBSITE");
+  L.push("=".repeat(56));
+  L.push("");
+  L.push("Partijen");
+  L.push("-".repeat(50));
+  L.push("Opdrachtnemer: " + MPM_BEDRIJFSGEGEVENS.naam + ", gevestigd te " + MPM_BEDRIJFSGEGEVENS.postcodePlaats + ",");
+  L.push(MPM_BEDRIJFSGEGEVENS.adres + ", KVK " + MPM_BEDRIJFSGEGEVENS.kvk + ", BTW-nummer " + MPM_BEDRIJFSGEGEVENS.btw + ",");
+  L.push("hierna te noemen \"Opdrachtnemer\";");
+  L.push("");
+  L.push("en");
+  L.push("");
+  L.push("Opdrachtgever: " + (deal.naam || "____________________") + (sc.answers.bedrijf_adres ? ", " + sc.answers.bedrijf_adres : "") + ",");
+  L.push("vertegenwoordigd door " + contactNaam + (deal.telefoon ? " (tel. " + deal.telefoon + ")" : "") + (deal.email ? ", e-mail " + deal.email : "") + ",");
+  L.push("hierna te noemen \"Opdrachtgever\";");
+  L.push("");
+  L.push("hierna gezamenlijk te noemen \"Partijen\", komen het volgende overeen.");
+  L.push("");
+  L.push("Artikel 1 — Onderwerp van de overeenkomst");
+  L.push("-".repeat(50));
+  L.push("1.1 Opdrachtnemer verbindt zich jegens Opdrachtgever tot het ontwerpen en");
+  L.push("    bouwen van een website (\"het Werk\") conform de functionaliteiten,");
+  L.push("    wensen en specificaties zoals vastgelegd in Bijlage A bij deze");
+  L.push("    overeenkomst (de functionaliteitenanalyse).");
+  L.push("1.2 Bijlage A maakt onlosmakelijk deel uit van deze overeenkomst. Bij");
+  L.push("    tegenstrijdigheid tussen deze overeenkomst en Bijlage A prevaleert");
+  L.push("    deze overeenkomst.");
+  L.push("1.3 Gekozen pakket: " + pkgNaam + ".");
+  L.push("");
+  L.push("Artikel 2 — Duur en oplevering");
+  L.push("-".repeat(50));
+  L.push("2.1 Opdrachtnemer streeft naar oplevering van het Werk op of omstreeks");
+  L.push("    " + opleverdatum + ". Deze datum is een streefdatum en geen fatale termijn,");
+  L.push("    tenzij Partijen schriftelijk anders overeenkomen.");
+  L.push("2.2 Vertraging veroorzaakt door het niet-tijdig aanleveren van content,");
+  L.push("    teksten, beeldmateriaal of toegang door Opdrachtgever, komt niet voor");
+  L.push("    rekening van Opdrachtnemer en schuift de opleverdatum evenredig op.");
+  L.push("");
+  L.push("Artikel 3 — Prijs en betaling");
+  L.push("-".repeat(50));
+  L.push("3.1 De totale projectprijs bedraagt €" + eenmaligBtw.excl.toFixed(2) + " excl. BTW (€" + eenmaligBtw.incl.toFixed(2) + " incl.");
+  L.push("    " + MPM_BEDRIJFSGEGEVENS.btwPercentage + "% BTW).");
+  L.push("3.2 Betaling geschiedt als volgt: " + betaalconditie + ".");
+  L.push("3.3 Bij niet-tijdige betaling is Opdrachtgever van rechtswege in verzuim en");
+  L.push("    is Opdrachtnemer gerechtigd de werkzaamheden op te schorten.");
+  L.push("");
+  L.push("Artikel 4 — Verplichtingen Opdrachtnemer");
+  L.push("-".repeat(50));
+  L.push("4.1 Opdrachtnemer voert het Werk uit naar beste inzicht en vermogen,");
+  L.push("    conform de eisen van goed vakmanschap.");
+  L.push("4.2 Deze overeenkomst is een overeenkomst van opdracht (art. 7:400 e.v.");
+  L.push("    BW): Opdrachtnemer verbindt zich tot een inspanning, niet tot een");
+  L.push("    gegarandeerd resultaat op elk detail, met dien verstande dat het");
+  L.push("    Werk wél moet voldoen aan Bijlage A.");
+  L.push("");
+  L.push("Artikel 5 — Verplichtingen Opdrachtgever");
+  L.push("-".repeat(50));
+  L.push("5.1 Opdrachtgever levert tijdig alle benodigde content, teksten,");
+  L.push("    beeldmateriaal, logo's en toegang (bijv. domein/hosting) aan.");
+  L.push("5.2 Opdrachtgever staat in voor de rechtmatigheid van het aangeleverde");
+  L.push("    materiaal (auteursrecht, portretrecht e.d.).");
+  L.push("");
+  L.push("Artikel 6 — Wijzigingen en meerwerk");
+  L.push("-".repeat(50));
+  L.push("6.1 Wensen die buiten de scope van Bijlage A vallen, worden als");
+  L.push("    meerwerk beschouwd en vooraf schriftelijk (ook per e-mail) tussen");
+  L.push("    Partijen afgestemd, inclusief de bijbehorende meerprijs.");
+  L.push("");
+  L.push("Artikel 7 — Oplevering en acceptatie");
+  L.push("-".repeat(50));
+  L.push("7.1 Na oplevering ontvangt Opdrachtgever de gelegenheid tot controle en");
+  L.push("    het aanvragen van aanpassingen binnen de gebruikelijke revisieronde(s).");
+  L.push("7.2 Het Werk geldt als geaccepteerd zodra Opdrachtgever schriftelijk");
+  L.push("    akkoord geeft, dan wel na 14 dagen zonder inhoudelijke reactie op de");
+  L.push("    opleverkennisgeving.");
+  L.push("");
+  L.push("Artikel 8 — Intellectueel eigendom");
+  L.push("-".repeat(50));
+  L.push("8.1 Alle rechten van intellectuele eigendom op het Werk gaan over op");
+  L.push("    Opdrachtgever na volledige betaling van de overeengekomen prijs.");
+  L.push("8.2 Door Opdrachtnemer gebruikte generieke bouwstenen, modules en");
+  L.push("    broncode-componenten die niet projectspecifiek zijn, blijven");
+  L.push("    eigendom van Opdrachtnemer en mogen ook voor andere klanten worden");
+  L.push("    ingezet.");
+  L.push("");
+  L.push("Artikel 9 — Aansprakelijkheid");
+  L.push("-".repeat(50));
+  L.push("9.1 De aansprakelijkheid van Opdrachtnemer is beperkt tot het bedrag dat");
+  L.push("    voor het Werk in rekening is gebracht, met een maximum van");
+  L.push("    €" + eenmaligBtw.incl.toFixed(2) + ".");
+  L.push("9.2 Opdrachtnemer is niet aansprakelijk voor indirecte schade,");
+  L.push("    gevolgschade of gederfde winst.");
+  L.push("");
+  L.push("Artikel 10 — Geheimhouding");
+  L.push("-".repeat(50));
+  L.push("10.1 Partijen behandelen vertrouwelijke informatie die zij van elkaar");
+  L.push("     ontvangen vertrouwelijk en delen deze niet met derden.");
+  L.push("");
+  L.push("Artikel 11 — Opzegging en ontbinding");
+  L.push("-".repeat(50));
+  L.push("11.1 Elke Partij kan deze overeenkomst schriftelijk ontbinden bij een");
+  L.push("     toerekenbare tekortkoming van de andere Partij, nadat deze in");
+  L.push("     gebreke is gesteld en een redelijke termijn tot herstel is geboden.");
+  L.push("11.2 Bij tussentijdse beëindiging door Opdrachtgever zonder dat sprake is");
+  L.push("     van een tekortkoming van Opdrachtnemer, blijft het reeds verrichte");
+  L.push("     werk verschuldigd naar rato van de voortgang.");
+  L.push("");
+  L.push("Artikel 12 — Toepasselijk recht en geschillen");
+  L.push("-".repeat(50));
+  L.push("12.1 Op deze overeenkomst is Nederlands recht van toepassing.");
+  L.push("12.2 Geschillen worden voorgelegd aan de bevoegde rechter in het");
+  L.push("     arrondissement waar Opdrachtnemer is gevestigd, tenzij dwingend");
+  L.push("     recht anders voorschrijft.");
+  L.push("");
+  L.push("Aldus overeengekomen en in tweevoud ondertekend.");
+  L.push("");
+  L.push("Opdrachtnemer                              Opdrachtgever");
+  L.push("");
+  L.push("");
+  L.push("____________________                       ____________________");
+  L.push("Naam:                                       Naam:");
+  L.push("Plaats/datum:                                Plaats/datum:");
+  L.push("");
+  L.push("Bijlage A: functionaliteitenanalyse — zie het bijgevoegde/apart");
+  L.push("gedownloade document \"" + (deal.naam || "klant").replace(/[^\w-]+/g, "_") + "-bijlage-a-functionaliteitenanalyse\".");
+  return L.join("\n");
+}
+
+// STAP 2, document 3/3 — ONDERHOUDSOVEREENKOMST: los contract voor het
+// maandelijkse onderhoudsabonnement, alleen relevant als er onderhoud is
+// gekozen bij "Pakket & investering" in de cliëntanalyse.
+function buildOnderhoudsovereenkomst(deal) {
+  const sc = ensureSalescall(deal);
+  const onderhoud = Number(deal.onderhoud) || 0;
+  const onderhoudBtw = fmtEuroBtw(onderhoud);
+  const onderhoudLabel = (SC_ONDERHOUD_OPTS.find(o => o[0] === String(deal.onderhoud)) || [])[1] || "Onderhoud";
+  const contactNaam = deal.contact || sc.answers.contact || "____________________";
+  const L = [];
+  L.push(mpmBrandHeader());
+  L.push("=".repeat(56));
+  L.push("ONDERHOUDSOVEREENKOMST — MAANDELIJKS WEBSITEONDERHOUD");
+  L.push("=".repeat(56));
+  L.push("");
+  if (!onderhoud) {
+    L.push("Let op: voor deze klant staat momenteel geen onderhoudsabonnement");
+    L.push("geregistreerd (Pakket & investering → Onderhoudscontract = Geen).");
+    L.push("Pas dat eerst aan in de Cliëntanalyse als er wél onderhoud is afgesproken.");
+    return L.join("\n");
+  }
+  L.push("Partijen");
+  L.push("-".repeat(50));
+  L.push("Opdrachtnemer: " + MPM_BEDRIJFSGEGEVENS.naam + ", " + MPM_BEDRIJFSGEGEVENS.adres + ", " + MPM_BEDRIJFSGEGEVENS.postcodePlaats + ",");
+  L.push("KVK " + MPM_BEDRIJFSGEGEVENS.kvk + ", BTW-nummer " + MPM_BEDRIJFSGEGEVENS.btw + ", hierna \"Opdrachtnemer\";");
+  L.push("");
+  L.push("Opdrachtgever: " + (deal.naam || "____________________") + ", vertegenwoordigd door " + contactNaam + ",");
+  L.push("hierna \"Opdrachtgever\".");
+  L.push("");
+  L.push("Artikel 1 — Onderwerp");
+  L.push("-".repeat(50));
+  L.push("1.1 Opdrachtnemer verzorgt doorlopend onderhoud van de door haar voor");
+  L.push("    Opdrachtgever gebouwde website, pakket: \"" + onderhoudLabel + "\".");
+  L.push("1.2 Onderhoud omvat: technische updates, beveiligingsupdates, back-ups en");
+  L.push("    kleine content-aanpassingen binnen redelijke omvang (richtlijn: max.");
+  L.push("    30 minuten werk per verzoek).");
+  L.push("1.3 Niet inbegrepen: nieuwe functionaliteiten, herontwerp, of");
+  L.push("    aanpassingen die de richtlijn in 1.2 overschrijden — deze worden");
+  L.push("    afzonderlijk geoffreerd.");
+  L.push("");
+  L.push("Artikel 2 — Looptijd en opzegging");
+  L.push("-".repeat(50));
+  L.push("2.1 Deze overeenkomst gaat in op de datum van oplevering van de website");
+  L.push("    en wordt aangegaan voor onbepaalde tijd.");
+  L.push("2.2 Beide Partijen kunnen maandelijks opzeggen met inachtneming van een");
+  L.push("    opzegtermijn van één (1) kalendermaand, schriftelijk (ook per e-mail).");
+  L.push("");
+  L.push("Artikel 3 — Vergoeding");
+  L.push("-".repeat(50));
+  L.push("3.1 De vergoeding bedraagt €" + onderhoudBtw.excl.toFixed(2) + " excl. BTW per maand (€" + onderhoudBtw.incl.toFixed(2) + " incl.");
+  L.push("    " + MPM_BEDRIJFSGEGEVENS.btwPercentage + "% BTW), maandelijks vooraf te voldoen.");
+  L.push("3.2 Prijswijzigingen worden minimaal één maand vooraf schriftelijk");
+  L.push("    aangekondigd.");
+  L.push("");
+  L.push("Artikel 4 — Aansprakelijkheid");
+  L.push("-".repeat(50));
+  L.push("4.1 Opdrachtnemer is niet aansprakelijk voor schade door uitval van");
+  L.push("    hosting- of andere derde-partijdiensten waar Opdrachtnemer geen");
+  L.push("    invloed op heeft.");
+  L.push("");
+  L.push("Aldus overeengekomen en in tweevoud ondertekend.");
+  L.push("");
+  L.push("Opdrachtnemer                              Opdrachtgever");
+  L.push("");
+  L.push("");
+  L.push("____________________                       ____________________");
+  L.push("Naam:                                       Naam:");
+  L.push("Plaats/datum:                                Plaats/datum:");
   return L.join("\n");
 }
 
@@ -3628,10 +3944,10 @@ function downloadText(filename, text) {
 // Geen PDF-library nodig (geen build-stap, alles moet in één statisch
 // bestand blijven werken) — gebruikt de eigen "opslaan als PDF"-optie van
 // de browser via het printdialoog, met een nette printopmaak.
-function downloadAgreementPdf(deal, text) {
+function downloadAgreementPdf(deal, text, docTitle) {
   const win = window.open("", "_blank");
   if (!win) { alert("Pop-up geblokkeerd — sta pop-ups toe voor deze site om als PDF te downloaden, of gebruik \"Download .txt\"."); return; }
-  const title = "Functionaliteitenovereenkomst — " + (deal.naam || "");
+  const title = (docTitle || "Functionaliteitenanalyse") + " — " + (deal.naam || "");
   win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
     <style>
       body { font-family: "Segoe UI", Arial, sans-serif; color: #16171b; padding: 48px; max-width: 720px; margin: 0 auto; }
@@ -3648,53 +3964,103 @@ function downloadAgreementPdf(deal, text) {
   win.document.close();
 }
 
-function showAgreement(deal, text) {
-  const body = document.getElementById("sc-agreement-step-wrap");
-  if (!body) return;
-  let wrap = document.getElementById("sc-agreement-wrap");
-  if (!wrap) { wrap = document.createElement("div"); wrap.id = "sc-agreement-wrap"; wrap.className = "sc-sec"; body.appendChild(wrap); }
-  wrap.innerHTML = `<h3>Functionaliteitenovereenkomst</h3>
-    <div class="sc-guide"><b>Controleer voor het versturen:</b> dit document is de enige brug tussen klantwensen en productie — typefouten of vage antwoorden komen letterlijk terug in de gebouwde site. Corrigeer hieronder waar nodig; je wijzigingen worden bewaard.</div>
-    <textarea class="sc-agreement" id="sc-agreement-text" rows="18" spellcheck="true">${esc(text)}</textarea>
-    <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
-      <button class="btn secondary" id="sc-copy" type="button">Kopieer</button>
-      <button class="btn secondary" id="sc-download" type="button">Download .txt</button>
-      <button class="btn secondary" id="sc-download-pdf" type="button">Download PDF</button>
-      <span id="sc-agreement-saved" class="hint2" style="margin-left:auto;"></span>
+// Drie (vier met bijlage) losse documenten i.p.v. één samengevoegde
+// "functionaliteitenovereenkomst" — elk apart te genereren/bewerken/downloaden,
+// maar met dezelfde generieke UI en opslaglogica (sc.docs[key]).
+const DOC_DEFS = {
+  offerte:  { title: "Offerte",                 buildFn: buildOfferte,                wrapId: "sc-doc-offerte",
+              guide: "Het document waarop de klant “ja” zegt." },
+  contract: { title: "Overeenkomst / Contract",  buildFn: buildContract,               wrapId: "sc-doc-contract",
+              guide: "Het juridisch bindende contract. Genereer eerst de Bijlage hieronder als je alle antwoorden erin verwerkt wilt zien — dit document verwijst er alleen naar." },
+  bijlage:  { title: "Bijlage A — Functionaliteitenanalyse", buildFn: buildAgreement,   wrapId: "sc-doc-bijlage",
+              guide: "Alle antwoorden uit de Cliëntanalyse, als los bijlage-document bij het contract." },
+  onderhoud:{ title: "Onderhoudsovereenkomst",   buildFn: buildOnderhoudsovereenkomst, wrapId: "sc-doc-onderhoud",
+              guide: "Alleen relevant als er een onderhoudsabonnement is afgesproken." }
+};
+
+function ensureScDocs(sc) { if (!sc.docs) sc.docs = {}; return sc.docs; }
+
+function showDocument(deal, docKey, text) {
+  const def = DOC_DEFS[docKey];
+  const container = document.getElementById(def.wrapId);
+  if (!container) return;
+  container.innerHTML = `<div class="sc-sec">
+      <h3>${esc(def.title)}</h3>
+      ${def.guide ? `<div class="sc-guide">${esc(def.guide)}</div>` : ""}
+      <textarea class="sc-agreement" id="${def.wrapId}-text" rows="16" spellcheck="true">${esc(text)}</textarea>
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
+        <button class="btn secondary" type="button" data-act="regen">Opnieuw genereren</button>
+        <button class="btn secondary" type="button" data-act="copy">Kopieer</button>
+        <button class="btn secondary" type="button" data-act="txt">Download .txt</button>
+        <button class="btn secondary" type="button" data-act="pdf">Download PDF</button>
+        <span class="hint2 doc-saved" style="margin-left:auto;"></span>
+      </div>
     </div>`;
-  const ta = document.getElementById("sc-agreement-text");
-  const savedNote = document.getElementById("sc-agreement-saved");
-  const persistEdits = () => {
+  const ta = document.getElementById(def.wrapId + "-text");
+  const savedNote = container.querySelector(".doc-saved");
+  const persist = () => {
     const sc = ensureSalescall(deal);
-    sc.agreement = ta.value;
+    ensureScDocs(sc)[docKey] = ta.value;
     saveSalescall();
     if (savedNote) { savedNote.textContent = "Wijzigingen opgeslagen"; setTimeout(() => { if (savedNote.textContent === "Wijzigingen opgeslagen") savedNote.textContent = ""; }, 2500); }
   };
-  ta.addEventListener("blur", persistEdits);
-  document.getElementById("sc-copy").addEventListener("click", () => {
-    navigator.clipboard?.writeText(ta.value).then(() => scSetStatus("Overeenkomst gekopieerd")).catch(() => {});
+  ta.addEventListener("blur", persist);
+  container.querySelector('[data-act="regen"]').addEventListener("click", () => generateDoc(deal, docKey));
+  container.querySelector('[data-act="copy"]').addEventListener("click", () => {
+    navigator.clipboard?.writeText(ta.value).then(() => scSetStatus(def.title + " gekopieerd")).catch(() => {});
   });
-  document.getElementById("sc-download-pdf").addEventListener("click", () => {
-    downloadAgreementPdf(deal, ta.value);
-  });
-  document.getElementById("sc-download").addEventListener("click", () => {
-    downloadText((deal.naam || "overeenkomst").replace(/[^\w-]+/g, "_") + "-overeenkomst.txt", ta.value);
+  container.querySelector('[data-act="pdf"]').addEventListener("click", () => downloadAgreementPdf(deal, ta.value, def.title));
+  container.querySelector('[data-act="txt"]').addEventListener("click", () => {
+    downloadText((deal.naam || docKey).replace(/[^\w-]+/g, "_") + "-" + docKey + ".txt", ta.value);
   });
 }
 
-function generateAgreement() {
-  const deal = state.deals.find(d => d.id === scDealId);
-  if (!deal) return;
+function generateDoc(deal, docKey) {
+  const def = DOC_DEFS[docKey];
+  if (!def) return;
   const sc = ensureSalescall(deal);
-  const text = buildAgreement(deal);
-  sc.agreement = text;
-  sc.agreementGeneratedAt = new Date().toISOString();
+  const text = def.buildFn(deal);
+  ensureScDocs(sc)[docKey] = text;
+  sc.docsGeneratedAt = sc.docsGeneratedAt || {};
+  sc.docsGeneratedAt[docKey] = new Date().toISOString();
   saveSalescall();
-  showAgreement(deal, text);
-  document.getElementById("sc-agreement-wrap")?.scrollIntoView({ behavior: "smooth" });
+  showDocument(deal, docKey, text);
+  document.getElementById(def.wrapId)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-on("sc-generate", "click", generateAgreement);
+// Rendert voor elk document ofwel de "Genereer..."-knop (nog niet gemaakt),
+// ofwel het bewerkbare resultaat — onderhoud wordt overgeslagen zolang er
+// geen onderhoudsabonnement is gekozen.
+function renderDocSections(deal) {
+  const sc = ensureSalescall(deal);
+  const docs = ensureScDocs(sc);
+  Object.keys(DOC_DEFS).forEach(key => {
+    const def = DOC_DEFS[key];
+    const container = document.getElementById(def.wrapId);
+    if (!container) return;
+    if (key === "onderhoud" && !Number(deal.onderhoud)) { container.innerHTML = ""; return; }
+    if (docs[key]) {
+      showDocument(deal, key, docs[key]);
+    } else {
+      container.innerHTML = `<div class="sc-sec">
+        <h3>${esc(def.title)}</h3>
+        ${def.guide ? `<div class="sc-guide">${esc(def.guide)}</div>` : ""}
+        <button class="btn" type="button" data-gen="${esc(key)}">Genereer ${esc(def.title.toLowerCase())}</button>
+      </div>`;
+      container.querySelector("[data-gen]").addEventListener("click", () => generateDoc(deal, key));
+    }
+  });
+}
+
+function renderOfferteMeta(deal) {
+  const sc = ensureSalescall(deal);
+  const dateEl = document.getElementById("sc-offerte-opleverdatum");
+  const condEl = document.getElementById("sc-offerte-betaalcondities");
+  if (dateEl) dateEl.value = sc.answers.offerte_opleverdatum || "";
+  if (condEl) condEl.value = sc.answers.offerte_betaalcondities || "50/50";
+  const pane = document.querySelector('.sc-stage-pane[data-stage="offerte"]');
+  if (pane) wireScAnswerInputs(pane, sc, deal);
+}
 
 /* =========================================================================
    AGENDA — maandkalender + lijst van alle geplande terugbelafspraken
