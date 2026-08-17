@@ -177,6 +177,8 @@
   .summary .card.accent .label { color: var(--card-accent-label); }
   .summary .card.accent .value { color: var(--ink-text); }
   .summary .card.accent .sub { color: var(--card-accent-sub); }
+  .summary .card.clickable { cursor: pointer; transition: border-color .12s; }
+  .summary .card.clickable:hover { border-color: var(--text-tertiary); }
 
   .section { display: none; }
   .section.active { display: block; }
@@ -605,10 +607,24 @@
         </div>
       </div>
       <div id="deals-count" class="panel-desc" style="margin-top:-4px;"></div>
+      <div class="filters" style="align-items:flex-end;">
+        <div class="filter-group" style="min-width:220px;">
+          <label>Volgende actie (bijv. eerste belpoging, factuur versturen)</label>
+          <input type="text" id="deals-schedule-note" placeholder="Omschrijving van de actie...">
+        </div>
+        <div class="filter-group">
+          <label>Datum &amp; tijd</label>
+          <input type="datetime-local" id="deals-schedule-when">
+        </div>
+        <div class="filter-group" style="justify-content:flex-end;">
+          <button class="btn secondary" id="deals-schedule-btn">Inplannen in agenda</button>
+        </div>
+      </div>
       <div class="table-scroll">
         <table>
           <thead>
             <tr>
+              <th style="width:30px;"><input type="checkbox" id="deals-select-all"></th>
               <th class="sortable" data-sort="naam">Bedrijf</th>
               <th class="sortable" data-sort="branche">Branche</th>
               <th class="sortable" data-sort="node">Fase</th>
@@ -1880,8 +1896,8 @@ function renderSummary() {
   const attention = deals.filter(d => dealStatus(d) === "active" && (dealIsStale(d) || dealFollowUpOverdue(d))).length;
 
   const cards = [
-    { label: "Leads in inbox", value: state.inboxLeads.length, sub: "wachtend op kwalificatie", accent:false },
-    { label: "Actieve deals", value: activeDeals.length, sub: `${deals.length} totaal ooit ingeladen` , accent:false},
+    { label: "Leads in inbox", value: state.inboxLeads.length, sub: "wachtend op kwalificatie", accent:false, tab: "inbox" },
+    { label: "Actieve deals", value: activeDeals.length, sub: `${deals.length} totaal ooit ingeladen` , accent:false, tab: "deals"},
     { label: "Pipeline waarde", value: fmtEuro(pipelineValue), sub: "actieve eenmalige waarde", accent:true },
     { label: "Gewogen forecast", value: fmtEuro(weighted), sub: "waarde × winkans per fase", accent:true },
     { label: "MRR onderhoud", value: fmtEuro(mrr) + "/mnd", sub: `${deals.filter(d=>d.node===208).length} actieve contracten`, accent:true },
@@ -1889,12 +1905,15 @@ function renderSummary() {
     { label: "Aandacht nodig", value: attention, sub: "stilstaand of opvolging verlopen", accent:false }
   ];
   document.getElementById("summary").innerHTML = cards.map(c => `
-    <div class="card ${c.accent ? "accent" : ""}">
+    <div class="card ${c.accent ? "accent" : ""} ${c.tab ? "clickable" : ""}" ${c.tab ? `data-tab="${c.tab}"` : ""}>
       <div class="label">${c.label}</div>
       <div class="value">${c.value}</div>
       <div class="sub">${c.sub}</div>
     </div>
   `).join("");
+  document.querySelectorAll("#summary .card[data-tab]").forEach(el => {
+    el.addEventListener("click", () => document.querySelector(`.tab-btn[data-tab="${el.dataset.tab}"]`)?.click());
+  });
 }
 
 /* =========================================================================
@@ -2651,6 +2670,7 @@ function renderDealsTable() {
     const overdue = dealFollowUpOverdue(d);
     return `
     <tr>
+      <td style="text-align:center;"><input type="checkbox" class="deal-check" data-id="${esc(d.id)}"></td>
       <td><b>${esc(d.naam)}</b>${d.contact ? `<div style="color:var(--text-secondary); font-size:11px;">${esc(d.contact)}</div>` : ""}</td>
       <td>${esc(d.branche || "")}</td>
       <td>${n ? esc(n.label) : "?"}${d.afboekReden ? `<div style="color:var(--danger); font-size:11px;">${esc(d.afboekReden)}</div>` : ""}</td>
@@ -2672,11 +2692,51 @@ function renderDealsTable() {
     btn.addEventListener("click", () => openDealModal(btn.dataset.id)));
   tbody.querySelectorAll(".deal-sc-btn").forEach(btn =>
     btn.addEventListener("click", () => openSalescall(btn.dataset.id)));
+  tbody.querySelectorAll(".deal-check").forEach(cb =>
+    cb.addEventListener("change", () => {
+      const all = document.querySelectorAll(".deal-check");
+      const checked = document.querySelectorAll(".deal-check:checked");
+      const sa = document.getElementById("deals-select-all");
+      if (sa) sa.checked = all.length > 0 && all.length === checked.length;
+    }));
 }
 
 on("d-search", "input", debounce(renderDealsTable, 200));
 on("d-node", "change", renderDealsTable);
 on("d-status", "change", renderDealsTable);
+
+on("deals-select-all", "change", () => {
+  const checked = document.getElementById("deals-select-all")?.checked;
+  document.querySelectorAll(".deal-check").forEach(cb => { cb.checked = !!checked; });
+});
+
+on("deals-schedule-btn", "click", () => {
+  const checked = Array.from(document.querySelectorAll(".deal-check:checked")).map(cb => cb.dataset.id);
+  if (!checked.length) { alert("Selecteer eerst één of meer leads."); return; }
+  const noteInput = document.getElementById("deals-schedule-note");
+  const whenInput = document.getElementById("deals-schedule-when");
+  const note = noteInput?.value.trim();
+  const when = whenInput?.value;
+  if (!when) { alert("Kies eerst een datum en tijd."); return; }
+  if (!note) { alert("Voer een omschrijving in voor de volgende actie."); return; }
+
+  const now = new Date().toISOString();
+  checked.forEach(dealId => {
+    const deal = state.deals.find(d => d.id === dealId);
+    if (!deal) return;
+    if (!deal.salescall) deal.salescall = { answers: {}, services: {}, startedAt: now };
+    deal.salescall.callback = { scheduledAt: when, note, createdAt: now };
+    deal.followUpAt = when.slice(0, 10);
+  });
+
+  saveState();
+  renderAll();
+  if (noteInput) noteInput.value = "";
+  if (whenInput) whenInput.value = "";
+  const selectAll = document.getElementById("deals-select-all");
+  if (selectAll) selectAll.checked = false;
+  alert(checked.length + (checked.length === 1 ? " lead" : " leads") + " ingepland in de Agenda.");
+});
 document.querySelectorAll("#section-deals th.sortable").forEach(th => {
   th.addEventListener("click", () => {
     const key = th.dataset.sort;
