@@ -213,6 +213,9 @@
   .inbox-row { cursor: pointer; }
   .inbox-row.selected td { background: var(--accent-bg); }
   .inbox-row.selected:hover td { background: var(--accent-bg); filter: brightness(0.97); }
+  .deal-row { cursor: pointer; }
+  .deal-row.selected td { background: var(--accent-bg); }
+  .deal-row.selected:hover td { background: var(--accent-bg); filter: brightness(0.97); }
   .stars { color: #d4a017; white-space: nowrap; font-size: 12px; }
   .empty-msg { text-align: center; color: var(--text-tertiary); font-size: 12.5px; padding: 30px; }
 
@@ -2669,7 +2672,7 @@ function renderDealsTable() {
     const stale = dealIsStale(d);
     const overdue = dealFollowUpOverdue(d);
     return `
-    <tr>
+    <tr class="deal-row" data-id="${esc(d.id)}">
       <td style="text-align:center;"><input type="checkbox" class="deal-check" data-id="${esc(d.id)}"></td>
       <td><b>${esc(d.naam)}</b>${d.contact ? `<div style="color:var(--text-secondary); font-size:11px;">${esc(d.contact)}</div>` : ""}</td>
       <td>${esc(d.branche || "")}</td>
@@ -2694,11 +2697,22 @@ function renderDealsTable() {
     btn.addEventListener("click", () => openSalescall(btn.dataset.id)));
   tbody.querySelectorAll(".deal-check").forEach(cb =>
     cb.addEventListener("change", () => {
+      const row = cb.closest("tr");
+      if (row) row.classList.toggle("selected", cb.checked);
       const all = document.querySelectorAll(".deal-check");
       const checked = document.querySelectorAll(".deal-check:checked");
       const sa = document.getElementById("deals-select-all");
       if (sa) sa.checked = all.length > 0 && all.length === checked.length;
     }));
+  tbody.querySelectorAll(".deal-row").forEach(row => {
+    row.addEventListener("click", (e) => {
+      if (e.target.closest(".deal-check, button, a")) return;
+      const cb = row.querySelector(".deal-check");
+      if (!cb) return;
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event("change"));
+    });
+  });
 }
 
 on("d-search", "input", debounce(renderDealsTable, 200));
@@ -2707,7 +2721,11 @@ on("d-status", "change", renderDealsTable);
 
 on("deals-select-all", "change", () => {
   const checked = document.getElementById("deals-select-all")?.checked;
-  document.querySelectorAll(".deal-check").forEach(cb => { cb.checked = !!checked; });
+  document.querySelectorAll(".deal-check").forEach(cb => {
+    cb.checked = !!checked;
+    const row = cb.closest("tr");
+    if (row) row.classList.toggle("selected", !!checked);
+  });
 });
 
 on("deals-schedule-btn", "click", () => {
@@ -4448,7 +4466,7 @@ function agItem(c) {
     <div class="ag-actions">
       ${tel ? `<a class="btn secondary small" href="tel:${esc(tel)}">Bel</a>` : ""}
       <button class="btn small ag-sc" data-id="${esc(d.id)}">📞 Cliëntanalyse</button>
-      <button class="btn secondary small ag-funnel" data-node="${d.node}">Funnel</button>
+      <button class="btn secondary small ag-funnel" data-id="${esc(d.id)}">Traject</button>
     </div>
   </div>`;
 }
@@ -4524,7 +4542,7 @@ function renderAgenda() {
       .join("");
   }
   list.querySelectorAll(".ag-sc").forEach(b => b.addEventListener("click", () => openSalescall(b.dataset.id)));
-  list.querySelectorAll(".ag-funnel").forEach(b => b.addEventListener("click", () => openNodePanel(Number(b.dataset.node))));
+  list.querySelectorAll(".ag-funnel").forEach(b => b.addEventListener("click", () => openSalescall(b.dataset.id)));
 }
 
 on("ag-prev", "click", () => { agendaInit(); if (--agendaView.month < 0) { agendaView.month = 11; agendaView.year--; } agendaView.selectedKey = null; renderAgenda(); });
