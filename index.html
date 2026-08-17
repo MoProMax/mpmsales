@@ -403,7 +403,10 @@
   .sc-chip.on { background: var(--ink); color: var(--ink-text); border-color: var(--ink); }
   .sc-chips.maxed { animation: scShake .3s; }
   @keyframes scShake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
-  .sc-agreement { display: block; width: 100%; box-sizing: border-box; white-space: pre-wrap; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; background: #0f1115; color: #e6e6ea; border: 1px solid #2a2c33; border-radius: 10px; padding: 14px; min-height: 260px; max-height: 480px; overflow: auto; resize: vertical; }
+  /* Documenten blijven altijd op "papier" (wit/lichte achtergrond, donkere
+     tekst) ongeacht het thema van de app zelf — net als een echt document
+     eruitziet, of je nu in licht- of donkermodus werkt. */
+  .sc-agreement { display: block; width: 100%; box-sizing: border-box; white-space: pre-wrap; font-family: Georgia, "Times New Roman", serif; font-size: 13px; line-height: 1.6; background: #fdfcfa; color: #1c1c1e; border: 1px solid #ddd; border-radius: 8px; padding: 26px 30px; min-height: 320px; max-height: 620px; overflow: auto; resize: vertical; box-shadow: 0 1px 4px rgb(0 0 0 / 0.08); }
   #sc-status.status { font-size: 11.5px; color: var(--text-secondary); align-self: center; }
   @media (max-width: 900px) { .sc-layout { grid-template-columns: 1fr; } .sc-queue-panel { position: static; max-height: none; } }
   @media (max-width: 760px) { .sc-svc-grid { grid-template-columns: 1fr; } .sc-row2 { grid-template-columns: 1fr; } }
@@ -3849,12 +3852,12 @@ function buildContract(deal) {
   L.push("");
   L.push("Aldus overeengekomen en in tweevoud ondertekend.");
   L.push("");
-  L.push("Opdrachtnemer                              Opdrachtgever");
+  L.push("Opdrachtnemer\tOpdrachtgever");
   L.push("");
   L.push("");
-  L.push("____________________                       ____________________");
-  L.push("Naam:                                       Naam:");
-  L.push("Plaats/datum:                                Plaats/datum:");
+  L.push("____________________\t____________________");
+  L.push("Naam:\tNaam:");
+  L.push("Plaats/datum:\tPlaats/datum:");
   L.push("");
   L.push("Bijlage A: functionaliteitenanalyse — zie het bijgevoegde/apart");
   L.push("gedownloade document \"" + (deal.naam || "klant").replace(/[^\w-]+/g, "_") + "-bijlage-a-functionaliteitenanalyse\".");
@@ -3923,12 +3926,12 @@ function buildOnderhoudsovereenkomst(deal) {
   L.push("");
   L.push("Aldus overeengekomen en in tweevoud ondertekend.");
   L.push("");
-  L.push("Opdrachtnemer                              Opdrachtgever");
+  L.push("Opdrachtnemer\tOpdrachtgever");
   L.push("");
   L.push("");
-  L.push("____________________                       ____________________");
-  L.push("Naam:                                       Naam:");
-  L.push("Plaats/datum:                                Plaats/datum:");
+  L.push("____________________\t____________________");
+  L.push("Naam:\tNaam:");
+  L.push("Plaats/datum:\tPlaats/datum:");
   return L.join("\n");
 }
 
@@ -3944,24 +3947,105 @@ function downloadText(filename, text) {
 // Geen PDF-library nodig (geen build-stap, alles moet in één statisch
 // bestand blijven werken) — gebruikt de eigen "opslaan als PDF"-optie van
 // de browser via het printdialoog, met een nette printopmaak.
+// Zet de platte documenttekst (die zelf altijd dezelfde vaste conventies
+// gebruikt: "====" = titelregel ervoor, "----" = sectiekop ervoor, "Artikel N"
+// = artikelkop, "Label : €X" = prijsregel, een tab = twee kolommen naast
+// elkaar voor de ondertekenblokken) om in nette HTML voor de PDF-weergave.
+function formatDocumentHtml(text) {
+  const lines = text.split("\n");
+  let html = "";
+  let inTable = false;
+  const closeTable = () => { if (inTable) { html += "</table>"; inTable = false; } };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    const next = lines[i + 1];
+    if (/^=+$/.test(trimmed) || /^-{10,}$/.test(trimmed)) continue; // losse regels worden via de kop-detectie hieronder verwerkt
+    if (trimmed && next !== undefined && /^=+$/.test(next.trim())) {
+      closeTable(); html += `<h1 class="doc-h1">${esc(trimmed)}</h1>`; continue;
+    }
+    if (trimmed && next !== undefined && /^-{10,}$/.test(next.trim())) {
+      closeTable(); html += `<h2 class="doc-h2">${esc(trimmed)}</h2>`; continue;
+    }
+    if (/^Artikel\s+\d+/.test(trimmed)) { closeTable(); html += `<h3 class="doc-h3">${esc(trimmed)}</h3>`; continue; }
+    if (line.includes("\t")) {
+      closeTable();
+      const cols = line.split("\t");
+      html += `<div class="doc-cols">${cols.map(c => `<div>${esc(c)}</div>`).join("")}</div>`;
+      continue;
+    }
+    if (!trimmed) { closeTable(); continue; }
+    const priceMatch = trimmed.match(/^([^:]{2,40}?)\s*:\s*(€[\d.,]+.*)$/);
+    if (priceMatch) {
+      if (!inTable) { html += `<table class="doc-table">`; inTable = true; }
+      html += `<tr><td class="doc-td-label">${esc(priceMatch[1])}</td><td class="doc-td-value">${esc(priceMatch[2])}</td></tr>`;
+      continue;
+    }
+    const kvMatch = trimmed.match(/^([\p{L} .\/&'-]{2,30}?)\s{2,}:\s*(.+)$/u);
+    if (kvMatch) {
+      closeTable();
+      html += `<div class="doc-kv"><span class="doc-kv-label">${esc(kvMatch[1])}</span><span class="doc-kv-value">${esc(kvMatch[2])}</span></div>`;
+      continue;
+    }
+    closeTable();
+    if (/^_{5,}/.test(trimmed)) { html += `<div class="doc-sigline">${esc(trimmed)}</div>`; continue; }
+    if (/^\s{3}/.test(line)) { html += `<div class="doc-sub">${esc(trimmed)}</div>`; continue; }
+    html += `<p class="doc-p">${esc(trimmed)}</p>`;
+  }
+  closeTable();
+  return html;
+}
+
 function downloadAgreementPdf(deal, text, docTitle) {
-  const win = window.open("", "_blank");
-  if (!win) { alert("Pop-up geblokkeerd — sta pop-ups toe voor deze site om als PDF te downloaden, of gebruik \"Download .txt\"."); return; }
   const title = (docTitle || "Functionaliteitenanalyse") + " — " + (deal.naam || "");
-  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
     <style>
-      body { font-family: "Segoe UI", Arial, sans-serif; color: #16171b; padding: 48px; max-width: 720px; margin: 0 auto; }
-      h1 { font-size: 18px; margin: 0 0 2px; }
-      .meta { color: #666; font-size: 12px; margin-bottom: 28px; }
-      pre { white-space: pre-wrap; word-wrap: break-word; font-family: "Segoe UI", Arial, sans-serif; font-size: 12.5px; line-height: 1.6; margin: 0; }
-      @media print { body { padding: 0; max-width: none; } }
+      :root { --gold: #B8873A; --purple: #3B1F63; }
+      * { box-sizing: border-box; }
+      body { font-family: Georgia, "Times New Roman", serif; color: #1c1c1e; margin: 0; background: #fff; }
+      .page { max-width: 700px; margin: 0 auto; padding: 44px 52px 60px; }
+      .letterhead { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid var(--purple); padding-bottom: 16px; margin-bottom: 28px; }
+      .brand { font-family: "Segoe UI", Arial, sans-serif; font-weight: 800; font-size: 22px; letter-spacing: 0.02em; color: var(--purple); }
+      .brand .accent { color: var(--gold); }
+      .company-meta { font-family: "Segoe UI", Arial, sans-serif; font-size: 10.5px; color: #666; text-align: right; line-height: 1.5; }
+      .doc-h1 { font-family: "Segoe UI", Arial, sans-serif; font-size: 19px; font-weight: 700; color: var(--purple); margin: 0 0 18px; padding-bottom: 8px; border-bottom: 1.5px solid var(--gold); }
+      .doc-h2 { font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--purple); margin: 24px 0 8px; }
+      .doc-h3 { font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; font-weight: 700; color: #1c1c1e; margin: 18px 0 6px; }
+      .doc-p { font-size: 13px; line-height: 1.65; margin: 0 0 8px; }
+      .doc-sub { font-size: 12.5px; line-height: 1.6; margin: 0 0 4px 14px; color: #333; }
+      .doc-kv { display: flex; gap: 8px; font-size: 13px; line-height: 1.55; }
+      .doc-kv-label { font-family: "Segoe UI", Arial, sans-serif; font-weight: 600; color: #555; min-width: 92px; }
+      .doc-table { border-collapse: collapse; width: 100%; margin: 6px 0 14px; }
+      .doc-table tr:not(:last-child) td { border-bottom: 1px solid #eee; }
+      .doc-td-label { font-family: "Segoe UI", Arial, sans-serif; font-size: 12.5px; color: #444; padding: 5px 0; }
+      .doc-td-value { font-family: "Segoe UI", Arial, sans-serif; font-size: 12.5px; font-weight: 600; text-align: right; padding: 5px 0; white-space: nowrap; }
+      .doc-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; font-family: "Segoe UI", Arial, sans-serif; font-size: 12.5px; margin: 6px 0; }
+      .doc-sigline { border-bottom: 1px solid #999; height: 1px; margin: 4px 0 4px; }
+      .footer-note { font-family: "Segoe UI", Arial, sans-serif; font-size: 10px; color: #999; margin-top: 36px; padding-top: 10px; border-top: 1px solid #eee; }
+      @media print { .page { padding: 0; max-width: none; } }
     </style></head><body>
-    <h1>${esc(title)}</h1>
-    <div class="meta">Mo Pro Max &middot; gegenereerd ${esc(new Date().toLocaleDateString("nl-NL"))}</div>
-    <pre>${esc(text)}</pre>
+    <div class="page">
+      <div class="letterhead">
+        <div class="brand">MO <span class="accent">PRO</span> MAX</div>
+        <div class="company-meta">
+          ${esc(MPM_BEDRIJFSGEGEVENS.adres)}<br>
+          ${esc(MPM_BEDRIJFSGEGEVENS.postcodePlaats)}<br>
+          KVK ${esc(MPM_BEDRIJFSGEGEVENS.kvk)}<br>
+          BTW ${esc(MPM_BEDRIJFSGEGEVENS.btw)}<br>
+          ${esc(MPM_BEDRIJFSGEGEVENS.email)} &middot; ${esc(MPM_BEDRIJFSGEGEVENS.website)}
+        </div>
+      </div>
+      ${formatDocumentHtml(text)}
+      <div class="footer-note">Gegenereerd ${esc(new Date().toLocaleDateString("nl-NL"))} door Mo Pro Max &middot; ${esc(title)}</div>
+    </div>
     <script>window.onload = function () { window.print(); };<\/script>
-    </body></html>`);
-  win.document.close();
+    </body></html>`;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.target = "_blank"; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
 
 // Drie (vier met bijlage) losse documenten i.p.v. één samengevoegde
