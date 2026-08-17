@@ -766,7 +766,10 @@
         <button class="btn" id="new-lead-btn">+ Lead handmatig toevoegen</button>
       </div>
       <div class="panel-desc">Bedrijven gevonden via internet-onderzoek, nog niet in de funnel. Selecteer leads en plaats ze direct bij "Nieuwe lead".</div>
-      <div id="fb-status" style="font-size:11.5px; color:var(--text-secondary); margin-bottom:10px; font-weight:600;">Firebase: initialiseren...</div>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+        <div id="fb-status" style="font-size:11.5px; color:var(--text-secondary); font-weight:600; flex:1;">Firebase: initialiseren...</div>
+        <button class="btn secondary small" id="leads-refresh-btn" type="button" style="white-space:nowrap;">↻ Ververs leads</button>
+      </div>
       <div class="filters">
         <div class="filter-group" style="min-width:220px;">
           <label>Zoeken</label>
@@ -1785,6 +1788,42 @@ async function fbInit() {
     fbSetStatus("Firebase: niet verbonden — geen data geladen. Vernieuw de pagina om opnieuw te proberen.", false);
   }
 }
+on("leads-refresh-btn", "click", async () => {
+  const btn = document.getElementById("leads-refresh-btn");
+  if (btn) btn.disabled = true;
+  fbSetStatus("Firebase: leads ophalen...", null);
+  try {
+    const chunkDocs = await fbListCollection("leadChunks");
+    chunkDocs.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+    const allLeads = [];
+    chunkDocs.forEach(c => { if (Array.isArray(c.data.items)) allLeads.push(...c.data.items); });
+
+    if (allLeads.length === 0) {
+      fbSetStatus(
+        `Firestore: leadChunks bevat ${chunkDocs.length} document(en) maar 0 leads. ` +
+        `De scraper heeft de inbox nog niet herbouwd.`, false
+      );
+    } else {
+      // Merge: voeg nieuwe leads toe, verwijder geen bestaande
+      const knownIds = new Set(state.inboxLeads.map(l => l.id));
+      const newLeads = allLeads.filter(l => l && l.id && !knownIds.has(l.id));
+      state.inboxLeads = allLeads; // vervang volledig met wat Firestore heeft
+      lastLeadsSignature = leadsSignature(state.inboxLeads);
+      renderInbox();
+      renderSummary();
+      fbSetStatus(
+        `Firebase: ${allLeads.length} leads geladen uit ${chunkDocs.length} chunk(s) — ${new Date().toLocaleTimeString("nl-NL")}`,
+        true
+      );
+    }
+  } catch (e) {
+    fbSetStatus("Ververs mislukt: " + e.message, false);
+    console.error("leads-refresh-btn fout:", e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
 // fbInit() wordt pas aangeroepen ná succesvolle login + TOTP-verificatie, via unlockDashboard().
 
 /* =========================================================================
