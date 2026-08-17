@@ -3676,6 +3676,7 @@ function buildOfferte(deal) {
   L.push(MPM_BEDRIJFSGEGEVENS.adres + " · " + MPM_BEDRIJFSGEGEVENS.postcodePlaats);
   L.push("KVK: " + MPM_BEDRIJFSGEGEVENS.kvk + " · BTW: " + MPM_BEDRIJFSGEGEVENS.btw);
   L.push(MPM_BEDRIJFSGEGEVENS.email + " · " + MPM_BEDRIJFSGEGEVENS.website);
+  L.push("");
   L.push("=".repeat(50));
   L.push("OFFERTE " + offertenr);
   L.push("=".repeat(50));
@@ -3736,6 +3737,7 @@ function buildContract(deal) {
   const contactNaam = deal.contact || sc.answers.contact || "____________________";
   const L = [];
   L.push(mpmBrandHeader());
+  L.push("");
   L.push("=".repeat(56));
   L.push("OVEREENKOMST VAN OPDRACHT — BOUW VAN EEN WEBSITE");
   L.push("=".repeat(56));
@@ -3875,6 +3877,7 @@ function buildOnderhoudsovereenkomst(deal) {
   const contactNaam = deal.contact || sc.answers.contact || "____________________";
   const L = [];
   L.push(mpmBrandHeader());
+  L.push("");
   L.push("=".repeat(56));
   L.push("ONDERHOUDSOVEREENKOMST — MAANDELIJKS WEBSITEONDERHOUD");
   L.push("=".repeat(56));
