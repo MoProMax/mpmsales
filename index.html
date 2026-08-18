@@ -4800,7 +4800,8 @@ function showApptEditPopup(anchorEl, deal) {
     <div style="display:flex; gap:6px; margin-top:10px;">
       <button class="btn small ag-popup-save" style="flex:1;">Opslaan</button>
       <button class="btn secondary small ag-popup-cancel">✕</button>
-    </div>`;
+    </div>
+    <button class="btn secondary small ag-popup-traject" style="width:100%; margin-top:6px;">Naar Traject →</button>`;
 
   // Positie naast het afspraakvak
   const rect = anchorEl.getBoundingClientRect();
@@ -4827,6 +4828,11 @@ function showApptEditPopup(anchorEl, deal) {
   });
 
   popup.querySelector(".ag-popup-cancel").addEventListener("click", () => popup.remove());
+
+  popup.querySelector(".ag-popup-traject").addEventListener("click", () => {
+    popup.remove();
+    openSalescall(deal.id);
+  });
 
   setTimeout(() => {
     document.addEventListener("mousedown", function outsideClose(ev) {
