@@ -332,6 +332,18 @@
   .sc-page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
   .sc-page-head h2 { margin: 0; font-size: 19px; }
   .sc-page-head .sub { color: var(--text-secondary); font-size: 12.5px; margin-top: 2px; }
+  /* Leadkaart: naam en telefoonnummer groot en direct bruikbaar tijdens het bellen. */
+  .sc-lead-card { flex: 1 1 320px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; }
+  .sc-lead-card h2 { font-size: 27px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; word-break: break-word; }
+  .sc-lead-phone { display: inline-flex; align-items: center; gap: 8px; margin-top: 9px; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; color: var(--accent); text-decoration: none; }
+  .sc-lead-phone:hover { text-decoration: underline; }
+  .sc-lead-phone .ico { font-size: 17px; }
+  .sc-lead-card .sub { margin-top: 8px; }
+  @media (max-width: 640px) {
+    .sc-lead-card { padding: 12px 14px; }
+    .sc-lead-card h2 { font-size: 22px; }
+    .sc-lead-phone { font-size: 20px; }
+  }
   .sc-steptabs { display: flex; gap: 6px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; width: fit-content; max-width: 100%; }
   .sc-steptab { border: none; background: transparent; padding: 7px 13px; font-size: 12px; font-weight: 600; border-radius: 7px; cursor: pointer; color: var(--text-tertiary); white-space: nowrap; }
   .sc-steptab .n { display: inline-block; width: 16px; height: 16px; line-height: 16px; border-radius: 50%; background: var(--border-strong); color: var(--surface); font-size: 10px; text-align: center; margin-right: 5px; }
@@ -989,8 +1001,9 @@
     <div class="sc-sticky-head">
       <button class="btn secondary small" id="sc-back-to-list-btn" type="button" style="margin-bottom:10px;">&larr; Alle leads</button>
       <div class="sc-page-head">
-        <div>
+        <div class="sc-lead-card">
           <h2 id="sc-title">Traject</h2>
+          <a class="sc-lead-phone" id="sc-lead-phone" href="#"><span class="ico">&#128222;</span><span id="sc-lead-phone-text"></span></a>
           <div class="sub" id="sc-subtitle"></div>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -3340,7 +3353,16 @@ function loadSalescallLead(dealId) {
   document.getElementById("sc-list-view").style.display = "none";
   document.getElementById("sc-active-lead").style.display = "";
   document.getElementById("sc-title").textContent = deal.naam;
-  document.getElementById("sc-subtitle").textContent = [deal.branche, deal.telefoon, nodeById[deal.node]?.label].filter(Boolean).join(" · ");
+  // Telefoonnummer staat apart en groot in de kaart, met tel:-link om direct te bellen.
+  const scPhoneLink = document.getElementById("sc-lead-phone");
+  if (deal.telefoon) {
+    document.getElementById("sc-lead-phone-text").textContent = deal.telefoon;
+    scPhoneLink.href = "tel:" + String(deal.telefoon).replace(/[^\d+]/g, "");
+    scPhoneLink.style.display = "";
+  } else {
+    scPhoneLink.style.display = "none";
+  }
+  document.getElementById("sc-subtitle").textContent = [deal.branche, nodeById[deal.node]?.label].filter(Boolean).join(" · ");
   scSetStatus("");
   renderSteptabs(deal);
   setSalescallStage(scStageForNode(deal.node).key);
