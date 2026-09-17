@@ -366,8 +366,7 @@
   .oc-reason-chip { border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger); border-radius: 999px; padding: 6px 13px; font-size: 12px; line-height: 1.3; cursor: pointer; user-select: none; text-align: left; }
   .oc-reason-chip:hover { filter: brightness(0.96); }
   .oc-reason-chip.on { background: var(--danger); color: var(--ink-text); border-color: var(--danger); }
-  .oc-afboek-confirm-row { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
-  .oc-afboek-confirm-row .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .sc-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 400; max-width: calc(100vw - 32px); background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); border-radius: 10px; padding: 12px 18px; font-size: 14px; font-weight: 700; box-shadow: 0 8px 24px rgb(var(--shadow-rgb) / 0.25); }
   .oc-reason-count { font-size: 11px; color: var(--text-tertiary); font-weight: 400; text-transform: none; letter-spacing: normal; }
   .sc-stage-pane { }
   .sc-doc-block:empty { display: none; }
@@ -3556,10 +3555,13 @@ document.querySelectorAll("#sc-list-view th.sortable").forEach(th => {
   });
 });
 
+// Volgende lead = de eerstvolgende die nog in het traject zit; afgeboekte
+// leads (en onderhoud) worden overgeslagen.
 on("sc-next-lead-btn", "click", () => {
   const list = state.deals;
   const idx = list.findIndex(d => d.id === scDealId);
-  const next = list[idx + 1] || list.find(d => d.id !== scDealId);
+  const open = d => d.id !== scDealId && SALESCALL_QUEUE_NODES.includes(d.node);
+  const next = list.slice(idx + 1).find(open) || list.find(open);
   if (next) loadSalescallLead(next.id);
   else closeSalescallWorkspace();
 });
@@ -3597,13 +3599,9 @@ function renderOutcomeBar(deal) {
         <b>Later / terugbellen</b> — géén afboeking. De deal blijft in deze fase staan; plan een terugbelmoment bij &ldquo;Later terugbellen&rdquo; verderop op deze pagina.
       </div>` : ""}
       ${redenen.length ? `<div class="oc-zone oc-zone-afboek">
-        <div class="oc-zone-label">Afboeken <span class="oc-reason-count">— kies één specifieke reden (${redenen.length} opties)</span></div>
+        <div class="oc-zone-label">Afboeken <span class="oc-reason-count">— klik op de reden (${redenen.length} opties), daarna bevestigen</span></div>
         <div class="oc-zone-row" id="oc-reason-chips">
           ${redenen.map(r => `<button type="button" class="oc-reason-chip" data-reason="${esc(r)}">${esc(r)}</button>`).join("")}
-        </div>
-        <div class="oc-afboek-confirm-row">
-          <button type="button" class="btn danger small" id="oc-afboek-confirm" disabled>Bevestig afboeking</button>
-          <span class="hint2" id="oc-afboek-selected"></span>
         </div>
       </div>` : ""}
     </div>`;
@@ -3614,24 +3612,61 @@ function renderOutcomeBar(deal) {
     });
   });
 
-  let selectedReason = "";
-  const confirmBtn = document.getElementById("oc-afboek-confirm");
-  const selectedNote = document.getElementById("oc-afboek-selected");
+  // Rode knop = afboeken: eerst een bevestiging met naam + reden, daarna een
+  // duidelijke melding en pas dan de volgende lead (bovenaan in beeld), zodat
+  // nooit meer lijkt alsof de lead gewoon op zijn fase is blijven staan.
   bar.querySelectorAll(".oc-reason-chip").forEach(chip => {
     chip.addEventListener("click", () => {
-      const already = chip.classList.contains("on");
-      bar.querySelectorAll(".oc-reason-chip").forEach(c => c.classList.remove("on"));
-      selectedReason = already ? "" : chip.dataset.reason;
-      if (!already) chip.classList.add("on");
-      if (confirmBtn) confirmBtn.disabled = !selectedReason;
-      if (selectedNote) selectedNote.textContent = selectedReason ? "Geselecteerd: " + selectedReason : "";
+      bar.querySelectorAll(".oc-reason-chip").forEach(c => c.classList.toggle("on", c === chip));
+      const reason = chip.dataset.reason;
+      const target = [205, 301, 302].includes(deal.node) ? 210 : 209;
+      confirmAfboeking(deal, reason, target, () => {
+        if (!attemptMoveWithReason(deal, deal.node, target, reason)) return;
+        renderAll();
+        scToast(`✓ ${deal.naam} afgeboekt → ${nodeById[target].label}: ${reason}`);
+        document.getElementById("sc-next-lead-btn")?.click();
+        document.getElementById("sc-active-lead")?.scrollIntoView({ block: "start" });
+      }, () => chip.classList.remove("on"));
     });
   });
-  confirmBtn?.addEventListener("click", () => {
-    if (!selectedReason) return;
-    const target = [205, 301, 302].includes(deal.node) ? 210 : 209;
-    if (attemptMoveWithReason(deal, deal.node, target, selectedReason)) { renderAll(); document.getElementById("sc-next-lead-btn")?.click(); }
+}
+
+function confirmAfboeking(deal, reason, target, onYes, onNo) {
+  const wrap = document.createElement("div");
+  wrap.className = "modal-backdrop open";
+  wrap.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" style="width:440px;">
+      <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--danger);">Afboeken → ${esc(nodeById[target].label)}</div>
+      <div style="font-size:20px; font-weight:800; margin:6px 0 10px; word-break:break-word;">${esc(deal.naam)}</div>
+      <div style="font-size:13.5px; margin-bottom:18px;">Reden: <b>${esc(reason)}</b></div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" class="btn secondary" data-act="nee">Annuleren</button>
+        <button type="button" class="btn danger" data-act="ja">Ja, afboeken</button>
+      </div>
+    </div>`;
+  const close = (yes) => {
+    wrap.remove();
+    document.removeEventListener("keydown", onKey);
+    (yes ? onYes : onNo)();
+  };
+  const onKey = (e) => { if (e.key === "Escape") close(false); };
+  wrap.addEventListener("click", (e) => {
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act) close(act === "ja");
+    else if (e.target === wrap) close(false);
   });
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(wrap);
+  wrap.querySelector('[data-act="ja"]').focus();
+}
+
+function scToast(text) {
+  document.querySelector(".sc-toast")?.remove();
+  const el = document.createElement("div");
+  el.className = "sc-toast";
+  el.textContent = text;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 5000);
 }
 
 // Generieke koppeling voor simpele tekst/checkbox-velden (data-key in
@@ -4654,6 +4689,7 @@ function dateKey(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).pa
 function agendaCallbacks() {
   const out = [];
   state.deals.forEach(d => {
+    if (dealStatus(d) === "lost") return; // afgeboekt = geen afspraak meer in de agenda
     const cb = d.salescall && d.salescall.callback;
     if (cb && cb.scheduledAt) {
       const when = new Date(cb.scheduledAt);
