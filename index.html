@@ -669,6 +669,10 @@
         <div class="filter-group" style="justify-content:flex-end;">
           <button class="btn secondary" id="deals-schedule-btn">Inplannen in agenda</button>
         </div>
+        <div class="filter-group" style="justify-content:flex-end; flex-direction:row; gap:8px; margin-left:auto;">
+          <button class="btn danger" id="deals-afboek-btn">Geselecteerde afboeken</button>
+          <button class="btn danger" id="deals-delete-btn">Geselecteerde verwijderen</button>
+        </div>
       </div>
       <div class="table-scroll">
         <table>
@@ -830,6 +834,9 @@
         </div>
         <div class="filter-group" style="justify-content:flex-end;">
           <button class="btn" id="move-to-funnel-btn">Verplaats geselecteerde naar funnel</button>
+        </div>
+        <div class="filter-group" style="justify-content:flex-end;">
+          <button class="btn danger" id="inbox-delete-btn">Verwijder geselecteerde</button>
         </div>
         <div class="filter-group" style="justify-content:flex-end; gap:6px;">
           <input type="datetime-local" id="inbox-schedule-when" title="Datum &amp; tijd eerste keer bellen">
@@ -1331,6 +1338,8 @@ let fbAuth = null;          // { idToken, expiresAt } — alleen in geheugen, ni
 let firebaseReady = false;  // true zodra de eerste pull uit Firestore is gelukt
 let fbSyncInFlight = false;
 let fbSyncQueued = false;   // er kwam een wijziging binnen terwijl een sync liep
+const fbPendingDealDeletes = new Set(); // deal-id's die na de volgende writes uit Firestore moeten
+const verwijderdeInboxIds = new Set();  // in deze sessie verwijderde inbox-leads: nooit terug laten komen via poll/vernieuwen
 let fbLastMeta = null;
 let leadPollTimer = null;   // periodieke achtergrond-check op nieuwe leads/aanvragen (zie pollForUpdates)
 let lastLeadsSignature = null;
@@ -1721,12 +1730,10 @@ async function fbBatchWrite(writes) {
     const group = writes.slice(i, i + 400);
     const idToken = await fbEnsureAuth();
     const body = {
-      writes: group.map(w => ({
-        update: {
-          name: `projects/${FIREBASE_CONFIG.projectId}/databases/${FIREBASE_CONFIG.databaseId}/documents/${w.path}`,
-          fields: toFsFields(w.fields)
-        }
-      }))
+      writes: group.map(w => {
+        const name = `projects/${FIREBASE_CONFIG.projectId}/databases/${FIREBASE_CONFIG.databaseId}/documents/${w.path}`;
+        return w.delete ? { delete: name } : { update: { name, fields: toFsFields(w.fields) } };
+      })
     };
     const res = await fetch(`${FS_BASE}:commit`, {
       method: "POST",
@@ -1797,9 +1804,14 @@ async function fbSyncPush() {
       fbLastMeta = { migrated: true, leadChunkCount: chunks.length };
       lastLeadsSignature = sig;
     }
+    const teVerwijderen = [...fbPendingDealDeletes];
     state.deals.forEach(d => writes.push({ path: `deals/${d.id}`, fields: d }));
     state.requests.forEach(r => writes.push({ path: `requests/${r.id}`, fields: r }));
     if (writes.length) await fbBatchWrite(writes);
+    if (teVerwijderen.length) {
+      await fbBatchWrite(teVerwijderen.map(id => ({ path: `deals/${id}`, delete: true })));
+      teVerwijderen.forEach(id => fbPendingDealDeletes.delete(id));
+    }
     await fbSetDoc("meta/status", {
       migrated: true, lastSync: new Date().toISOString(), leadChunkCount: fbLastMeta.leadChunkCount,
       leadCount: state.inboxLeads.length, dealCount: state.deals.length, requestCount: state.requests.length
@@ -1830,7 +1842,11 @@ async function pollForUpdates() {
     const remoteLeads = [];
     chunkDocs.forEach(c => { if (Array.isArray(c.data.items)) remoteLeads.push(...c.data.items); });
     const knownIds = new Set(state.inboxLeads.map(l => l.id));
-    const newLeads = remoteLeads.filter(l => l && l.id && !knownIds.has(l.id));
+    const newLeads = remoteLeads.filter(l => {
+      if (!l || !l.id || knownIds.has(l.id) || verwijderdeInboxIds.has(l.id)) return false;
+      knownIds.add(l.id); // zelfde id twee keer in Firestore = maar één keer toevoegen
+      return true;
+    });
     if (newLeads.length) {
       state.inboxLeads.push(...newLeads);
       lastLeadsSignature = leadsSignature(state.inboxLeads);
@@ -1928,7 +1944,7 @@ on("leads-refresh-btn", "click", async () => {
       // Merge: voeg nieuwe leads toe, verwijder geen bestaande
       const knownIds = new Set(state.inboxLeads.map(l => l.id));
       const newLeads = allLeads.filter(l => l && l.id && !knownIds.has(l.id));
-      state.inboxLeads = allLeads; // vervang volledig met wat Firestore heeft
+      state.inboxLeads = allLeads.filter(l => !verwijderdeInboxIds.has(l && l.id)); // vervang volledig met wat Firestore heeft (behalve net verwijderde)
       lastLeadsSignature = leadsSignature(state.inboxLeads);
       renderInbox();
       renderSummary();
@@ -2048,11 +2064,24 @@ function deleteDeal(dealId) {
   if (idx === -1) return false;
   const deal = state.deals[idx];
   if (!confirm(`Deal "${deal.naam}" definitief verwijderen?`)) return false;
-  state.deals.splice(idx, 1);
-  fbDeleteDoc("deals/" + encodeURIComponent(dealId)).catch(e => console.warn("Firestore delete mislukt", e));
+  removeDeals([dealId]);
+  return true;
+}
+
+// De Firestore-delete loopt via fbSyncPush, ná de writes van die sync: een
+// sync die al liep (met de deal nog in zijn lijst) kan hem zo niet terugzetten.
+function removeDeals(ids) {
+  const weg = new Set(ids);
+  state.deals = state.deals.filter(d => !weg.has(d.id));
+  ids.forEach(id => fbPendingDealDeletes.add(id));
+  if (scDealId && weg.has(scDealId)) closeSalescallWorkspace();
   saveState();
   renderAll();
-  return true;
+}
+
+// Afboeken vanaf betaald/controle/aanpassingen = Gestopt, daarvóór = Verloren.
+function afboekDoel(node) {
+  return [205, 301, 302].includes(node) ? 210 : 209;
 }
 
 function renderAll() {
@@ -2651,6 +2680,24 @@ on("select-all", "change", (e) => {
   document.querySelectorAll(".inbox-check").forEach(cb => { cb.checked = e.target.checked; cb.closest(".inbox-row")?.classList.toggle("selected", e.target.checked); });
 });
 
+// Verwijdert de geselecteerde inbox-leads (alle kopieën met hetzelfde id)
+// uit de inbox; de volgende sync herschrijft de leadChunks zonder ze.
+on("inbox-delete-btn", "click", () => {
+  const ids = new Set(getCheckedInboxIds());
+  if (!ids.size) { alert("Selecteer eerst één of meer leads."); return; }
+  const aantal = state.inboxLeads.filter(l => ids.has(l.id)).length;
+  const n = aantal + (aantal === 1 ? " lead" : " leads");
+  if (!confirm(`${n} definitief verwijderen uit de inbox en de database? Dit kan niet ongedaan worden gemaakt.`)) return;
+  state.inboxLeads = state.inboxLeads.filter(l => !ids.has(l.id));
+  ids.forEach(id => verwijderdeInboxIds.add(id));
+  saveState();
+  renderInbox();
+  renderSummary();
+  const selectAll = document.getElementById("select-all");
+  if (selectAll) selectAll.checked = false;
+  scToast(`✓ ${n} verwijderd`);
+});
+
 // Gedeelde omzetting lead -> deal, gebruikt door zowel "Verplaats naar
 // funnel" als "Inplannen: eerste keer bellen". node:201 = "Nieuwe lead" in
 // het huidige schema (was hier per ongeluk nog het oude, niet-gemigreerde
@@ -2960,6 +3007,85 @@ on("deals-schedule-btn", "click", () => {
   if (selectAll) selectAll.checked = false;
   alert(checked.length + (checked.length === 1 ? " lead" : " leads") + " ingepland in de Agenda.");
 });
+function checkedDealIds() {
+  return Array.from(document.querySelectorAll(".deal-check:checked")).map(cb => cb.dataset.id);
+}
+function clearDealSelection() {
+  const selectAll = document.getElementById("deals-select-all");
+  if (selectAll) selectAll.checked = false;
+}
+
+on("deals-delete-btn", "click", () => {
+  const ids = checkedDealIds();
+  if (!ids.length) { alert("Selecteer eerst één of meer leads."); return; }
+  const n = ids.length + (ids.length === 1 ? " lead" : " leads");
+  if (!confirm(`${n} definitief verwijderen uit de database? Dit kan niet ongedaan worden gemaakt.`)) return;
+  removeDeals(ids);
+  clearDealSelection();
+  scToast(`✓ ${n} verwijderd`);
+});
+
+// Bulk-afboeken: per fase in de selectie één verplichte reden (de redenen
+// verschillen per fase). Al afgeboekte, opgeleverde en onderhoud-leads
+// hebben geen afboekredenen en worden overgeslagen.
+on("deals-afboek-btn", "click", () => {
+  const ids = new Set(checkedDealIds());
+  if (!ids.size) { alert("Selecteer eerst één of meer leads."); return; }
+  const groepen = new Map();
+  let overgeslagen = 0;
+  state.deals.filter(d => ids.has(d.id)).forEach(d => {
+    if (dealStatus(d) === "lost" || !(AFBOEK_REDENEN[d.node] || []).length) { overgeslagen++; return; }
+    if (!groepen.has(d.node)) groepen.set(d.node, []);
+    groepen.get(d.node).push(d);
+  });
+  if (!groepen.size) { alert("Geen van de geselecteerde leads kan worden afgeboekt (al afgeboekt, opgeleverd of in onderhoud)."); return; }
+  const totaal = [...groepen.values()].reduce((s, ds) => s + ds.length, 0);
+  const n = totaal + (totaal === 1 ? " lead" : " leads");
+
+  const wrap = document.createElement("div");
+  wrap.className = "modal-backdrop open";
+  wrap.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" style="width:540px;">
+      <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--danger);">Afboeken in bulk</div>
+      <div style="font-size:20px; font-weight:800; margin:6px 0 14px;">${n} afboeken</div>
+      ${[...groepen].map(([node, ds]) => `
+        <div class="filter-group" style="margin-bottom:14px; min-width:0;">
+          <label>Vanuit ${esc(nodeById[node].label)} (${ds.length}) → ${esc(nodeById[afboekDoel(node)].label)}</label>
+          <select class="bulk-reden" data-node="${node}">
+            <option value="">Afboekreden kiezen…</option>
+            ${AFBOEK_REDENEN[node].map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}
+          </select>
+          <div class="hint2">${ds.slice(0, 5).map(d => esc(d.naam)).join(", ")}${ds.length > 5 ? ` en ${ds.length - 5} meer` : ""}</div>
+        </div>`).join("")}
+      ${overgeslagen ? `<div class="hint2" style="margin-bottom:14px;">${overgeslagen} geselecteerde lead(s) worden overgeslagen (al afgeboekt, opgeleverd of in onderhoud).</div>` : ""}
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" class="btn secondary" data-act="nee">Annuleren</button>
+        <button type="button" class="btn danger" data-act="ja" disabled>Ja, ${n} afboeken</button>
+      </div>
+    </div>`;
+  const jaBtn = wrap.querySelector('[data-act="ja"]');
+  const selects = [...wrap.querySelectorAll(".bulk-reden")];
+  selects.forEach(s => s.addEventListener("change", () => { jaBtn.disabled = selects.some(x => !x.value); }));
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  const close = () => { wrap.remove(); document.removeEventListener("keydown", onKey); };
+  wrap.addEventListener("click", (e) => {
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "nee" || e.target === wrap) { close(); return; }
+    if (act !== "ja" || selects.some(x => !x.value)) return;
+    selects.forEach(s => {
+      const node = Number(s.dataset.node);
+      groepen.get(node).forEach(d => attemptMoveWithReason(d, node, afboekDoel(node), s.value));
+    });
+    close();
+    renderAll();
+    clearDealSelection();
+    scToast(`✓ ${n} afgeboekt`);
+  });
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(wrap);
+  selects[0].focus();
+});
+
 document.querySelectorAll("#section-deals th.sortable").forEach(th => {
   th.addEventListener("click", () => {
     const key = th.dataset.sort;
@@ -3626,7 +3752,7 @@ function renderOutcomeBar(deal) {
     chip.addEventListener("click", () => {
       bar.querySelectorAll(".oc-reason-chip").forEach(c => c.classList.toggle("on", c === chip));
       const reason = chip.dataset.reason;
-      const target = [205, 301, 302].includes(deal.node) ? 210 : 209;
+      const target = afboekDoel(deal.node);
       confirmAfboeking(deal, reason, target, () => {
         if (!attemptMoveWithReason(deal, deal.node, target, reason)) return;
         renderAll();
