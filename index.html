@@ -1241,18 +1241,19 @@ function migrateDealNodes(deals) {
 
 // Eenmalig (17-09-2026): nieuwe leads die vanuit de inbox naar de funnel zijn
 // gezet maar daarna op geen enkele manier zijn bewerkt, gaan terug naar de
-// leads inbox. Alleen deals van vóór TERUGZET_GRENS, zodat leads die je na
+// leads inbox — ook als ze alleen in de agenda zijn ingepland (die afspraak
+// vervalt dan). Alleen deals van vóór TERUGZET_GRENS, zodat leads die je na
 // deze wijziging bewust naar de funnel verplaatst er nooit door geraakt worden.
 const TERUGZET_GRENS = "2026-09-17T11:30:00Z";
 const IMPORT_NOTITIE_RE = /^Geïmporteerd vanuit leads inbox \((.*)\)$/;
 function salescallHeeftInhoud(sc) {
   if (!sc) return false;
-  if (Object.keys(sc).some(k => !["answers", "services", "startedAt", "updatedAt"].includes(k))) return true;
+  if (Object.keys(sc).some(k => !["answers", "services", "startedAt", "updatedAt", "callback"].includes(k))) return true;
   const antwoordGevuld = v => Array.isArray(v) ? v.length > 0 : (v && typeof v === "object") ? true : String(v ?? "").trim() !== "";
   return Object.values(sc.answers || {}).some(antwoordGevuld) || Object.values(sc.services || {}).some(Boolean);
 }
 function isOnbewerkteNieuweLead(d) {
-  return !!(d && d.sourceLeadId && d.node === 201 && !d.afboekReden && !d.followUpAt && !d.updatedAt
+  return !!(d && d.sourceLeadId && d.node === 201 && !d.afboekReden && !d.updatedAt
     && !d.contact && !d.email
     && !(d.activiteiten || []).length && !(d.history || []).length
     && !salescallHeeftInhoud(d.salescall)
