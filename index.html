@@ -1239,6 +1239,61 @@ function migrateDealNodes(deals) {
   return changed;
 }
 
+// Eenmalig (17-09-2026): nieuwe leads die vanuit de inbox naar de funnel zijn
+// gezet maar daarna op geen enkele manier zijn bewerkt, gaan terug naar de
+// leads inbox. Alleen deals van vóór TERUGZET_GRENS, zodat leads die je na
+// deze wijziging bewust naar de funnel verplaatst er nooit door geraakt worden.
+const TERUGZET_GRENS = "2026-09-17T11:30:00Z";
+const IMPORT_NOTITIE_RE = /^Geïmporteerd vanuit leads inbox \((.*)\)$/;
+function salescallHeeftInhoud(sc) {
+  if (!sc) return false;
+  if (Object.keys(sc).some(k => !["answers", "services", "startedAt", "updatedAt"].includes(k))) return true;
+  const antwoordGevuld = v => Array.isArray(v) ? v.length > 0 : (v && typeof v === "object") ? true : String(v ?? "").trim() !== "";
+  return Object.values(sc.answers || {}).some(antwoordGevuld) || Object.values(sc.services || {}).some(Boolean);
+}
+function isOnbewerkteNieuweLead(d) {
+  return !!(d && d.sourceLeadId && d.node === 201 && !d.afboekReden && !d.followUpAt && !d.updatedAt
+    && !d.contact && !d.email
+    && !(d.activiteiten || []).length && !(d.history || []).length
+    && !salescallHeeftInhoud(d.salescall)
+    && IMPORT_NOTITIE_RE.test(d.notities || "")
+    && String(d.createdAt || "") < TERUGZET_GRENS);
+}
+function dealNaarInboxLead(d) {
+  const m = IMPORT_NOTITIE_RE.exec(d.notities || "");
+  const plek = m ? m[1] : "";
+  const i = plek.indexOf(", ");
+  return {
+    id: d.sourceLeadId,
+    naam: d.naam,
+    branche: d.branche || "",
+    telefoon: d.telefoon || "",
+    regio: i === -1 ? plek : plek.slice(0, i),
+    adres: i === -1 ? "" : plek.slice(i + 2),
+    rating: null,
+    reviews: null,
+    teruggezetOp: new Date().toISOString()
+  };
+}
+// Schrijft eerst de inbox weg en verwijdert pas daarna de deals, zodat een
+// mislukte write nooit leads kwijtraakt. Idempotent: een deal die niet
+// verwijderd kon worden wordt bij de volgende load opnieuw opgeruimd.
+async function zetOnbewerkteNieuweLeadsTerug() {
+  const terug = state.deals.filter(isOnbewerkteNieuweLead);
+  if (!terug.length) return 0;
+  const bekend = new Set(state.inboxLeads.map(l => l.id));
+  const nieuweInbox = terug.filter(d => !bekend.has(d.sourceLeadId)).map(dealNaarInboxLead).concat(state.inboxLeads);
+  const chunks = chunkLeads(nieuweInbox);
+  await fbBatchWrite(chunks.map((items, i) => ({ path: `leadChunks/chunk_${i}`, fields: { items, count: items.length } })));
+  state.inboxLeads = nieuweInbox;
+  lastLeadsSignature = leadsSignature(nieuweInbox);
+  fbLastMeta = { migrated: true, leadChunkCount: chunks.length };
+  const ids = new Set(terug.map(d => d.id));
+  state.deals = state.deals.filter(d => !ids.has(d.id));
+  await Promise.all(terug.map(d => fbDeleteDoc("deals/" + encodeURIComponent(d.id))));
+  return terug.length;
+}
+
 const NODE_W = 210, NODE_H = 62;
 const nodeById = Object.fromEntries(NODES.map(n => [n.id, n]));
 
@@ -1823,10 +1878,19 @@ async function fbInit() {
     lastLeadsSignature = leadsSignature(state.inboxLeads);
     firebaseReady = true;
 
-    if (migrateDealNodes(state.deals)) saveState();
+    const nodesGemigreerd = migrateDealNodes(state.deals);
+    let teruggezet = 0;
+    try {
+      teruggezet = await zetOnbewerkteNieuweLeadsTerug();
+      console.log("[fbInit] onbewerkte nieuwe leads teruggezet naar inbox:", teruggezet);
+    } catch (e) {
+      console.error("[fbInit] terugzetten naar inbox mislukt", e);
+    }
+    if (nodesGemigreerd || teruggezet) saveState();
     fbSetStatus(
       "Firebase: gesynchroniseerd " + new Date().toLocaleTimeString("nl-NL") +
-      " — " + state.inboxLeads.length + " leads, " + state.deals.length + " deals", true
+      " — " + state.inboxLeads.length + " leads, " + state.deals.length + " deals" +
+      (teruggezet ? " · " + teruggezet + " onbewerkte nieuwe leads teruggezet in de inbox" : ""), true
     );
     renderAll();
     renderInbox();
