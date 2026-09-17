@@ -363,6 +363,7 @@
   .oc-forward-btn:hover { filter: brightness(0.95); }
   .oc-zone-later { background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: 9px; padding: 10px 13px; font-size: 12.5px; color: var(--text); }
   .oc-zone-afboek { border-top: 1px dashed var(--border); padding-top: 14px; }
+  .oc-reason-group { font-size: 11px; font-weight: 700; color: var(--text-secondary); margin: 10px 0 6px; }
   .oc-reason-chip { border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger); border-radius: 999px; padding: 6px 13px; font-size: 12px; line-height: 1.3; cursor: pointer; user-select: none; text-align: left; }
   .oc-reason-chip:hover { filter: brightness(0.96); }
   .oc-reason-chip.on { background: var(--danger); color: var(--ink-text); border-color: var(--danger); }
@@ -836,7 +837,14 @@
           <button class="btn" id="move-to-funnel-btn">Verplaats geselecteerde naar funnel</button>
         </div>
         <div class="filter-group" style="justify-content:flex-end;">
+          <button class="btn danger" id="inbox-afboek-btn">Geselecteerde afboeken</button>
+        </div>
+        <div class="filter-group" style="justify-content:flex-end;">
           <button class="btn danger" id="inbox-delete-btn">Verwijder geselecteerde</button>
+        </div>
+        <div class="filter-group" style="justify-content:flex-end; flex-direction:row; gap:6px;">
+          <button class="btn" id="inbox-pick-btn" title="Kiest 10 willekeurige leads uit de huidige filters en vinkt ze aan">Pak 10 willekeurige leads</button>
+          <button class="btn secondary" id="inbox-pick-reset" style="display:none;">Toon alle leads</button>
         </div>
         <div class="filter-group" style="justify-content:flex-end; gap:6px;">
           <input type="datetime-local" id="inbox-schedule-when" title="Datum &amp; tijd eerste keer bellen">
@@ -1212,6 +1220,21 @@ const AFBOEK_REDENEN = {
   ]
 };
 
+// Afboeken kan altijd, vanuit elke fase, met élke reden: alle redenen in één
+// gegroepeerde lijst (de fase waaruit is afgeboekt wordt nog wel als
+// afboekVanNode bewaard voor de data-analyse).
+const AFBOEK_GROEPEN = [
+  { titel: "Gegevens & doelgroep",  redenen: AFBOEK_REDENEN[201] },
+  { titel: "Contact & interesse",   redenen: AFBOEK_REDENEN[202] },
+  { titel: "Analyse",               redenen: AFBOEK_REDENEN[203] },
+  { titel: "Offerte & besluit",     redenen: AFBOEK_REDENEN[204] },
+  { titel: "Na akkoord & betaling", redenen: AFBOEK_REDENEN[205] },
+  { titel: "Bouw & oplevering",     redenen: [...new Set([...AFBOEK_REDENEN[301], ...AFBOEK_REDENEN[302]])] }
+];
+function afboekRedenOptions() {
+  return AFBOEK_GROEPEN.map(g => `<optgroup label="${esc(g.titel)}">${g.redenen.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</optgroup>`).join("");
+}
+
 // Eenmalige, onvoorwaardelijk veilige migratieketen: 1–34 (oorspronkelijke
 // 34-stappen-funnel) -> 101–112 (eerste compacte versie) -> 201–210 (Afboekflow).
 // Elk schema heeft zijn eigen ID-bereik, dus een deal matcht hoogstens één
@@ -1340,6 +1363,7 @@ let fbSyncInFlight = false;
 let fbSyncQueued = false;   // er kwam een wijziging binnen terwijl een sync liep
 const fbPendingDealDeletes = new Set(); // deal-id's die na de volgende writes uit Firestore moeten
 const verwijderdeInboxIds = new Set();  // in deze sessie verwijderde inbox-leads: nooit terug laten komen via poll/vernieuwen
+let inboxPick = null;                   // Set met de id's van de "Pak 10"-leads, of null
 let fbLastMeta = null;
 let leadPollTimer = null;   // periodieke achtergrond-check op nieuwe leads/aanvragen (zie pollForUpdates)
 let lastLeadsSignature = null;
@@ -2079,9 +2103,49 @@ function removeDeals(ids) {
   renderAll();
 }
 
-// Afboeken vanaf betaald/controle/aanpassingen = Gestopt, daarvóór = Verloren.
+// Afboeken vanaf betaald of later (ook opgeleverd/onderhoud) = Gestopt,
+// daarvóór = Verloren.
 function afboekDoel(node) {
-  return [205, 301, 302].includes(node) ? 210 : 209;
+  return [205, 301, 302, 207, 208].includes(node) ? 210 : 209;
+}
+
+// Eén bevestigingsvenster voor elke bulk-afboeking (Actieve leads én inbox):
+// één verplichte reden uit de volledige lijst.
+function openAfboekDialog({ aantal, namen, hint, onJa }) {
+  const n = aantal + (aantal === 1 ? " lead" : " leads");
+  const wrap = document.createElement("div");
+  wrap.className = "modal-backdrop open";
+  wrap.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" style="width:540px;">
+      <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--danger);">Afboeken</div>
+      <div style="font-size:20px; font-weight:800; margin:6px 0 6px;">${n} afboeken</div>
+      <div class="hint2" style="margin-bottom:14px;">${namen.slice(0, 6).map(esc).join(", ")}${namen.length > 6 ? ` en ${namen.length - 6} meer` : ""}</div>
+      <div class="filter-group" style="margin-bottom:14px; min-width:0;">
+        <label>Afboekreden</label>
+        <select class="bulk-reden"><option value="">Afboekreden kiezen…</option>${afboekRedenOptions()}</select>
+      </div>
+      ${hint ? `<div class="hint2" style="margin-bottom:14px;">${esc(hint)}</div>` : ""}
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" class="btn secondary" data-act="nee">Annuleren</button>
+        <button type="button" class="btn danger" data-act="ja" disabled>Ja, ${n} afboeken</button>
+      </div>
+    </div>`;
+  const jaBtn = wrap.querySelector('[data-act="ja"]');
+  const select = wrap.querySelector(".bulk-reden");
+  select.addEventListener("change", () => { jaBtn.disabled = !select.value; });
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  const close = () => { wrap.remove(); document.removeEventListener("keydown", onKey); };
+  wrap.addEventListener("click", (e) => {
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "nee" || e.target === wrap) { close(); return; }
+    if (act !== "ja" || !select.value) return;
+    close();
+    onJa(select.value);
+    scToast(`✓ ${n} afgeboekt: ${select.value}`);
+  });
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(wrap);
+  select.focus();
 }
 
 function renderAll() {
@@ -2295,7 +2359,7 @@ function openNodePanel(nodeId, onlyDealId) {
           ${age != null ? `<span class="stage-age ${stale ? "stale" : ""}">${age} d. in fase</span>` : ""}
           ${d.followUpAt ? ` <span class="stage-age ${overdue ? "overdue" : ""}">opvolgen ${fmtDate(d.followUpAt)}</span>` : ""}
         </div>
-        ${d.afboekReden ? `<div class="meta" style="margin-top:4px; color:var(--danger);">Afboekreden: ${esc(d.afboekReden)}${d.afboekVanNode && nodeById[d.afboekVanNode] ? " (vanuit " + esc(nodeById[d.afboekVanNode].label) + ")" : ""}</div>` : ""}
+        ${d.afboekReden ? `<div class="meta" style="margin-top:4px; color:var(--danger);">Afgeboekt — ${esc(d.afboekReden)}</div>` : ""}
         ${acts.length ? `<div class="act-list">${acts.map(a => `<div class="act-item"><b>${esc(a.type)}</b> ${fmtDate(a.at)}${a.text ? " — " + esc(a.text) : ""}</div>`).join("")}</div>` : ""}
         <div class="act-add">
           <select class="act-type" data-id="${esc(d.id)}">
@@ -2345,22 +2409,19 @@ function openNodePanel(nodeId, onlyDealId) {
         if (e.key === "Enter") body.querySelector(`.act-save-btn[data-id="${inp.dataset.id}"]`)?.click();
       });
     });
-    // Toont/verbergt de verplichte reden-select zodra "Verloren" of "Gestopt"
-    // gekozen wordt — de afboekreden hoort bij de fase waarUIT wordt verplaatst
-    // (data-from), niet bij de doelfase zelf.
+    // Toont/verbergt de verplichte reden-select (alle redenen) zodra
+    // "Verloren" of "Gestopt" gekozen wordt.
     body.querySelectorAll(".move-target").forEach(select => {
       select.addEventListener("change", () => {
         const wrap = body.querySelector(`.afboek-reason-wrap[data-id="${select.dataset.id}"]`);
         if (!wrap) return;
         const target = Number(select.value);
-        const fromNode = Number(wrap.dataset.from);
-        const redenen = AFBOEK_REDENEN[fromNode];
-        if ((target === 209 || target === 210) && redenen) {
+        if (target === 209 || target === 210) {
           wrap.style.display = "";
           wrap.innerHTML = `
             <select class="afboek-reason-select" style="width:100%; padding:7px 9px; border:1px solid var(--border-strong); border-radius:7px; font-size:12.5px; background:var(--surface); color:var(--text);">
               <option value="">Afboekreden kiezen…</option>
-              ${redenen.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}
+              ${afboekRedenOptions()}
             </select>`;
         } else {
           wrap.style.display = "none";
@@ -2600,7 +2661,14 @@ function renderInbox() {
   const matches = currentInboxMatches();
 
   const limit = fLimitRaw === "all" ? matches.length : Number(fLimitRaw) || 50;
-  const filtered = matches.slice(0, limit);
+  // "Pak 10": alleen de gepakte leads tonen, tot ze allemaal verwerkt zijn.
+  if (inboxPick) {
+    const nogOver = state.inboxLeads.filter(l => inboxPick.has(l.id));
+    if (!nogOver.length) inboxPick = null;
+  }
+  const filtered = inboxPick ? state.inboxLeads.filter(l => inboxPick.has(l.id)) : matches.slice(0, limit);
+  const pickReset = document.getElementById("inbox-pick-reset");
+  if (pickReset) pickReset.style.display = inboxPick ? "" : "none";
 
   const tbody = document.getElementById("inbox-body");
   const emptyMsg = document.getElementById("inbox-empty");
@@ -2608,7 +2676,9 @@ function renderInbox() {
 
   if (countEl) {
     const parts = [];
-    if (matches.length === 0) {
+    if (inboxPick) {
+      parts.push(`${filtered.length} willekeurig gepakte ${filtered.length === 1 ? "lead" : "leads"}.`);
+    } else if (matches.length === 0) {
       parts.push("Geen resultaten voor de huidige filters.");
     } else if (filtered.length < matches.length) {
       parts.push(`Toont ${filtered.length} van ${matches.length} gevonden leads.`);
@@ -2657,13 +2727,67 @@ function debounce(fn, wait) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
 }
 
-on("f-branche", "change", renderInbox);
-on("f-regio", "change", renderInbox);
-on("f-reviews", "input", debounce(renderInbox, 200));
-on("f-rating", "input", debounce(renderInbox, 200));
-on("f-search", "input", debounce(renderInbox, 200));
-on("f-limit", "change", renderInbox);
-on("f-show-no-phone", "change", renderInbox);
+// Filter aanpassen = terug naar de gewone lijst (uit de "Pak 10"-weergave).
+function inboxFilterChanged() {
+  inboxPick = null;
+  renderInbox();
+}
+on("f-branche", "change", inboxFilterChanged);
+on("f-regio", "change", inboxFilterChanged);
+on("f-reviews", "input", debounce(inboxFilterChanged, 200));
+on("f-rating", "input", debounce(inboxFilterChanged, 200));
+on("f-search", "input", debounce(inboxFilterChanged, 200));
+on("f-limit", "change", inboxFilterChanged);
+on("f-show-no-phone", "change", inboxFilterChanged);
+
+
+on("inbox-pick-btn", "click", () => {
+  const pool = currentInboxMatches().slice();
+  if (!pool.length) { alert("Geen leads in de inbox die aan de filters voldoen."); return; }
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  inboxPick = new Set(pool.slice(0, 10).map(l => l.id));
+  renderInbox();
+  document.querySelectorAll(".inbox-check").forEach(cb => { cb.checked = true; cb.closest(".inbox-row")?.classList.add("selected"); });
+});
+on("inbox-pick-reset", "click", () => {
+  inboxPick = null;
+  renderInbox();
+});
+
+// Afboeken rechtstreeks vanuit de inbox: de lead wordt een afgeboekte deal
+// (Verloren, met reden), zodat hij net als elke andere afboeking in de
+// data-analyse meetelt en uit de inbox verdwijnt.
+on("inbox-afboek-btn", "click", () => {
+  const ids = new Set(getCheckedInboxIds());
+  if (!ids.size) { alert("Selecteer eerst één of meer leads."); return; }
+  const leads = state.inboxLeads.filter(l => ids.has(l.id));
+  openAfboekDialog({
+    aantal: leads.length,
+    namen: leads.map(l => l.naam),
+    onJa: (reden) => {
+      const now = new Date().toISOString();
+      leads.forEach(lead => {
+        const deal = leadToDealFields(lead, now);
+        deal.node = 209;
+        deal.history = [{ at: now, van: 201, naar: 209 }];
+        deal.afboekReden = reden;
+        deal.afboekVanNode = 201;
+        deal.afboekOp = now;
+        deal.activiteiten = [{ at: now, type: "Notitie", text: "Afgeboekt vanuit de leads inbox (Verloren): " + reden }];
+        state.deals.push(deal);
+      });
+      state.inboxLeads = state.inboxLeads.filter(l => !ids.has(l.id));
+      saveState();
+      renderInbox();
+      renderAll();
+      const selectAll = document.getElementById("select-all");
+      if (selectAll) selectAll.checked = false;
+    }
+  });
+});
 
 on("reset-filters-btn", "click", () => {
   const ids = { "f-branche": "", "f-regio": "", "f-reviews": "0", "f-rating": "0", "f-search": "", "f-limit": "50" };
@@ -2673,7 +2797,7 @@ on("reset-filters-btn", "click", () => {
   });
   const showNoPhone = document.getElementById("f-show-no-phone");
   if (showNoPhone) showNoPhone.checked = true;
-  renderInbox();
+  inboxFilterChanged();
 });
 
 on("select-all", "change", (e) => {
@@ -2704,7 +2828,9 @@ on("inbox-delete-btn", "click", () => {
 // node:1 — klopte pas na een volledige pagina-herlaad via migrateDealNodes).
 function leadToDealFields(lead, now) {
   return {
-    id: "deal-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+    // Ruime willekeurige staart: bij bulkacties ontstaan tientallen deals in
+    // dezelfde milliseconde, en een dubbel id overschrijft in Firestore een deal.
+    id: "deal-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10),
     sourceLeadId: lead.id,
     naam: lead.naam,
     contact: "",
@@ -3025,65 +3151,25 @@ on("deals-delete-btn", "click", () => {
   scToast(`✓ ${n} verwijderd`);
 });
 
-// Bulk-afboeken: per fase in de selectie één verplichte reden (de redenen
-// verschillen per fase). Al afgeboekte, opgeleverde en onderhoud-leads
-// hebben geen afboekredenen en worden overgeslagen.
+// Bulk-afboeken: één reden voor de hele selectie, vanuit elke fase.
+// Alleen al afgeboekte leads worden overgeslagen.
 on("deals-afboek-btn", "click", () => {
   const ids = new Set(checkedDealIds());
   if (!ids.size) { alert("Selecteer eerst één of meer leads."); return; }
-  const groepen = new Map();
-  let overgeslagen = 0;
-  state.deals.filter(d => ids.has(d.id)).forEach(d => {
-    if (dealStatus(d) === "lost" || !(AFBOEK_REDENEN[d.node] || []).length) { overgeslagen++; return; }
-    if (!groepen.has(d.node)) groepen.set(d.node, []);
-    groepen.get(d.node).push(d);
+  const gekozen = state.deals.filter(d => ids.has(d.id));
+  const teAfboeken = gekozen.filter(d => dealStatus(d) !== "lost");
+  if (!teAfboeken.length) { alert("De geselecteerde leads zijn al afgeboekt."); return; }
+  const overgeslagen = gekozen.length - teAfboeken.length;
+  openAfboekDialog({
+    aantal: teAfboeken.length,
+    namen: teAfboeken.map(d => d.naam),
+    hint: overgeslagen ? overgeslagen + " geselecteerde lead(s) zijn al afgeboekt en worden overgeslagen." : "",
+    onJa: (reden) => {
+      teAfboeken.forEach(d => attemptMoveWithReason(d, d.node, afboekDoel(d.node), reden));
+      renderAll();
+      clearDealSelection();
+    }
   });
-  if (!groepen.size) { alert("Geen van de geselecteerde leads kan worden afgeboekt (al afgeboekt, opgeleverd of in onderhoud)."); return; }
-  const totaal = [...groepen.values()].reduce((s, ds) => s + ds.length, 0);
-  const n = totaal + (totaal === 1 ? " lead" : " leads");
-
-  const wrap = document.createElement("div");
-  wrap.className = "modal-backdrop open";
-  wrap.innerHTML = `
-    <div class="modal" role="dialog" aria-modal="true" style="width:540px;">
-      <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--danger);">Afboeken in bulk</div>
-      <div style="font-size:20px; font-weight:800; margin:6px 0 14px;">${n} afboeken</div>
-      ${[...groepen].map(([node, ds]) => `
-        <div class="filter-group" style="margin-bottom:14px; min-width:0;">
-          <label>Vanuit ${esc(nodeById[node].label)} (${ds.length}) → ${esc(nodeById[afboekDoel(node)].label)}</label>
-          <select class="bulk-reden" data-node="${node}">
-            <option value="">Afboekreden kiezen…</option>
-            ${AFBOEK_REDENEN[node].map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}
-          </select>
-          <div class="hint2">${ds.slice(0, 5).map(d => esc(d.naam)).join(", ")}${ds.length > 5 ? ` en ${ds.length - 5} meer` : ""}</div>
-        </div>`).join("")}
-      ${overgeslagen ? `<div class="hint2" style="margin-bottom:14px;">${overgeslagen} geselecteerde lead(s) worden overgeslagen (al afgeboekt, opgeleverd of in onderhoud).</div>` : ""}
-      <div style="display:flex; gap:8px; justify-content:flex-end;">
-        <button type="button" class="btn secondary" data-act="nee">Annuleren</button>
-        <button type="button" class="btn danger" data-act="ja" disabled>Ja, ${n} afboeken</button>
-      </div>
-    </div>`;
-  const jaBtn = wrap.querySelector('[data-act="ja"]');
-  const selects = [...wrap.querySelectorAll(".bulk-reden")];
-  selects.forEach(s => s.addEventListener("change", () => { jaBtn.disabled = selects.some(x => !x.value); }));
-  const onKey = (e) => { if (e.key === "Escape") close(); };
-  const close = () => { wrap.remove(); document.removeEventListener("keydown", onKey); };
-  wrap.addEventListener("click", (e) => {
-    const act = e.target.closest("[data-act]")?.dataset.act;
-    if (act === "nee" || e.target === wrap) { close(); return; }
-    if (act !== "ja" || selects.some(x => !x.value)) return;
-    selects.forEach(s => {
-      const node = Number(s.dataset.node);
-      groepen.get(node).forEach(d => attemptMoveWithReason(d, node, afboekDoel(node), s.value));
-    });
-    close();
-    renderAll();
-    clearDealSelection();
-    scToast(`✓ ${n} afgeboekt`);
-  });
-  document.addEventListener("keydown", onKey);
-  document.body.appendChild(wrap);
-  selects[0].focus();
 });
 
 document.querySelectorAll("#section-deals th.sortable").forEach(th => {
@@ -3616,10 +3702,7 @@ on("sc-jump-afboek-btn", "click", () => {
 function dealStatusLabel(deal) {
   const n = nodeById[deal.node];
   if (!n) return "—";
-  if ((deal.node === 209 || deal.node === 210) && deal.afboekReden) {
-    const fromLabel = nodeById[deal.afboekVanNode]?.label;
-    return (fromLabel ? fromLabel + " — " : "") + deal.afboekReden;
-  }
+  if (dealStatus(deal) === "lost") return "Afgeboekt" + (deal.afboekReden ? " — " + deal.afboekReden : "");
   return n.label;
 }
 
@@ -3715,7 +3798,7 @@ function renderOutcomeBar(deal) {
   // gegenereerd is.
   const skipDocGate = deal.node === 203;
   const nextIds = outgoing(deal.node).filter(id => id !== 209 && id !== 210 && !(skipDocGate && id === 204));
-  const redenen = AFBOEK_REDENEN[deal.node] || [];
+  const kanAfboeken = dealStatus(deal) !== "lost";
   const isLater = LATER_NODES.includes(deal.node);
 
   bar.innerHTML = `
@@ -3731,11 +3814,13 @@ function renderOutcomeBar(deal) {
       ${isLater ? `<div class="oc-zone oc-zone-later">
         <b>Later / terugbellen</b> — géén afboeking. De deal blijft in deze fase staan; plan een terugbelmoment bij &ldquo;Later terugbellen&rdquo; verderop op deze pagina.
       </div>` : ""}
-      ${redenen.length ? `<div class="oc-zone oc-zone-afboek">
-        <div class="oc-zone-label">Afboeken <span class="oc-reason-count">— klik op de reden (${redenen.length} opties), daarna bevestigen</span></div>
-        <div class="oc-zone-row" id="oc-reason-chips">
-          ${redenen.map(r => `<button type="button" class="oc-reason-chip" data-reason="${esc(r)}">${esc(r)}</button>`).join("")}
-        </div>
+      ${kanAfboeken ? `<div class="oc-zone oc-zone-afboek">
+        <div class="oc-zone-label">Afboeken <span class="oc-reason-count">— klik op de reden, daarna bevestigen</span></div>
+        ${AFBOEK_GROEPEN.map(g => `
+          <div class="oc-reason-group">${esc(g.titel)}</div>
+          <div class="oc-zone-row">
+            ${g.redenen.map(r => `<button type="button" class="oc-reason-chip" data-reason="${esc(r)}">${esc(r)}</button>`).join("")}
+          </div>`).join("")}
       </div>` : ""}
     </div>`;
 
