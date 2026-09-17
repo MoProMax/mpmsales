@@ -1331,6 +1331,7 @@ const LEAD_CHUNK_SIZE = 1500; // blijft ruim onder Firestore's 1MiB per-document
 let fbAuth = null;          // { idToken, expiresAt } — alleen in geheugen, niet opgeslagen
 let firebaseReady = false;  // true zodra de eerste pull uit Firestore is gelukt
 let fbSyncInFlight = false;
+let fbSyncQueued = false;   // er kwam een wijziging binnen terwijl een sync liep
 let fbLastMeta = null;
 let leadPollTimer = null;   // periodieke achtergrond-check op nieuwe leads/aanvragen (zie pollForUpdates)
 let lastLeadsSignature = null;
@@ -1777,8 +1778,13 @@ async function fbPullFullState() {
 }
 
 async function fbSyncPush() {
-  if (!firebaseReady || fbSyncInFlight) return;
+  if (!firebaseReady) return;
+  // Loopt er al een sync, dan niet overslaan maar direct daarna opnieuw
+  // draaien — anders ging bv. een afboeking die binnen een paar seconden na
+  // "Gebeld →" werd bevestigd nooit naar Firestore.
+  if (fbSyncInFlight) { fbSyncQueued = true; return; }
   fbSyncInFlight = true;
+  fbSyncQueued = false;
   fbSetStatus("Firebase: synchroniseren...", null);
   try {
     const sig = leadsSignature(state.inboxLeads);
@@ -1805,6 +1811,7 @@ async function fbSyncPush() {
     fbSetStatus("Firebase: sync mislukt, lokale data actief", false);
   } finally {
     fbSyncInFlight = false;
+    if (fbSyncQueued) fbSyncPush().catch(e => console.warn("Firebase sync (push) mislukt", e));
   }
 }
 
