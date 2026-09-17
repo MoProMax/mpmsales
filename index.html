@@ -1994,6 +1994,11 @@ function dealFollowUpOverdue(d) {
   const t = new Date(d.followUpAt + "T23:59:59");
   return !isNaN(t) && t.getTime() < Date.now();
 }
+// Afgeboekte deals (Verloren/Gestopt, welke reden dan ook) staan in elke
+// lijst onderaan, ongeacht de gekozen sortering.
+function afgeboektOnderaan(a, b) {
+  return Number(dealStatus(a) === "lost") - Number(dealStatus(b) === "lost");
+}
 function dealStatus(d) {
   const n = nodeById[d.node];
   const t = n ? nodeType(n) : "normal";
@@ -2857,7 +2862,7 @@ function renderDealsTable() {
       default: return 0;
     }
   };
-  rows.sort((a, b) => { const va = val(a), vb = val(b); return (va < vb ? -1 : va > vb ? 1 : 0) * dir; });
+  rows.sort((a, b) => { const va = val(a), vb = val(b); return afgeboektOnderaan(a, b) || (va < vb ? -1 : va > vb ? 1 : 0) * dir; });
 
   const countEl = document.getElementById("deals-count");
   if (countEl) countEl.textContent = `${rows.length} van ${state.deals.length} deals.`;
@@ -3515,6 +3520,8 @@ function renderSalescallList() {
     }
   };
   const list = state.deals.slice().sort((a, b) => {
+    const afgeboekt = afgeboektOnderaan(a, b);
+    if (afgeboekt) return afgeboekt;
     if (key) {
       const va = sortVal(a), vb = sortVal(b);
       if (va < vb) return -1 * dir;
